@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getAccessAccountEmail } from "@/lib/supabase/admin";
+import {
+  getAccessAccountEmail,
+  type AccessAccountResult,
+} from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type LoginState = { error: string | null };
@@ -43,9 +46,9 @@ export async function loginWithCode(
     return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
   }
 
-  let email: string | null;
+  let account: AccessAccountResult;
   try {
-    email = await getAccessAccountEmail();
+    account = await getAccessAccountEmail();
   } catch (error) {
     // خطأ تهيئة لا خطأ مستخدم — نعرضه كما هو ليصلحه المالك
     return {
@@ -53,17 +56,46 @@ export async function loginWithCode(
     };
   }
 
-  if (!email) {
+  /*
+    كل حالة ورسالتها الخاصة.
+
+    «لا يوجد مالك» و«الترحيلات لم تُطبَّق» يبدوان متشابهين من الخارج لكن
+    حلّهما مختلف تماماً، ورسالة واحدة تغطيهما ترسل المالك إلى المكان
+    الخطأ وتضيّع وقته.
+  */
+  if (account.kind === "schema_missing") {
     return {
       error:
-        "لا يوجد حساب مالك نشط في النظام بعد. أنشئ المستخدم في Supabase ثم " +
-        "اضبط دوره على owner.",
+        "قاعدة البيانات فارغة — الترحيلات لم تُطبَّق بعد.\n\n" +
+        "طبّقها بأحد الطريقين:\n" +
+        "• أضف أسرار GitHub الثلاثة فيعمل db-migrate تلقائياً\n" +
+        "• أو محلياً: npx supabase link ثم npm run db:push\n\n" +
+        "بعدها أنشئ المستخدم واضبط دوره على owner.",
     };
+  }
+
+  if (account.kind === "no_owner") {
+    return {
+      error:
+        "الترحيلات مطبَّقة، لكن لا يوجد حساب مالك نشط.\n\n" +
+        "Supabase → Authentication → Users → Add user (مع Auto Confirm)، " +
+        "ثم في SQL Editor:\n" +
+        "update public.profiles set role = 'owner' " +
+        "where id = (select id from auth.users where email = 'بريدك');",
+    };
+  }
+
+  if (account.kind === "owner_without_email") {
+    return { error: "حساب المالك بلا بريد إلكتروني — لا يمكن الدخول به." };
+  }
+
+  if (account.kind === "error") {
+    return { error: `تعذّر الوصول للنظام: ${account.message}` };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email,
+    email: account.email,
     password: parsed.data.code,
   });
 

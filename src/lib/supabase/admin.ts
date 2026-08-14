@@ -46,10 +46,20 @@ export function createAdminClient() {
  * يُقرأ على الخادم فقط ولا يصل المتصفح إطلاقاً. لو عُرِّض كنقطة عامة
  * لأصبح اسم الحساب معلوماً لأي أحد، وهو نصف ما يحتاجه المهاجم.
  */
-export async function getAccessAccountEmail(): Promise<string | null> {
+export type AccessAccountResult =
+  | { kind: "ok"; email: string }
+  /** الترحيلات لم تُطبَّق: جدول profiles غير موجود أصلاً. */
+  | { kind: "schema_missing" }
+  /** المخطط موجود لكن لا يوجد مالك نشط. */
+  | { kind: "no_owner" }
+  /** المالك موجود لكن حسابه في auth بلا بريد — لا يمكن الدخول به. */
+  | { kind: "owner_without_email" }
+  | { kind: "error"; message: string };
+
+export async function getAccessAccountEmail(): Promise<AccessAccountResult> {
   const admin = createAdminClient();
 
-  const { data: owner } = await admin
+  const { data: owner, error } = await admin
     .from("profiles")
     .select("id")
     .eq("role", "owner")
@@ -58,8 +68,29 @@ export async function getAccessAccountEmail(): Promise<string | null> {
     .limit(1)
     .maybeSingle<{ id: string }>();
 
-  if (!owner) return null;
+  /*
+    التمييز بين «لا يوجد مالك» و«الجدول غير موجود» ليس تفصيلاً تجميلياً:
+    الحالتان تعنيان خطوتين مختلفتين تماماً — الأولى تُحل بإنشاء مستخدم،
+    والثانية بتطبيق الترحيلات. خلطهما يرسل المالك إلى المكان الخطأ.
 
-  const { data } = await admin.auth.admin.getUserById(owner.id);
-  return data.user?.email ?? null;
+    PostgREST يعيد 42P01 من Postgres أو PGRST205 من ذاكرة المخطط حين
+    يكون الجدول غير موجود.
+  */
+  if (error) {
+    if (error.code === "42P01" || error.code === "PGRST205") {
+      return { kind: "schema_missing" };
+    }
+    return { kind: "error", message: error.message };
+  }
+
+  if (!owner) return { kind: "no_owner" };
+
+  const { data, error: userError } = await admin.auth.admin.getUserById(
+    owner.id,
+  );
+
+  if (userError) return { kind: "error", message: userError.message };
+
+  const email = data.user?.email;
+  return email ? { kind: "ok", email } : { kind: "owner_without_email" };
 }
