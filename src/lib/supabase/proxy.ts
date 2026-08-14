@@ -3,11 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/env";
 
+import { generateOwnerSessionToken, isOpenAccessEnabled } from "./admin";
+
 /** المسارات المتاحة بدون تسجيل دخول. */
 const PUBLIC_PATHS = ["/login", "/auth"];
 
 /**
- * يجدّد جلسة Supabase على كل طلب ويعيد توجيه غير المسجلين.
+ * يجدّد جلسة Supabase على كل طلب، ويفتح النظام تلقائياً عند تفعيل ذلك.
  *
  * لماذا getUser() لا getSession(): الأولى تتحقق من التوكن لدى خادم Supabase،
  * والثانية تقرأ الكوكي كما هو دون تحقق — فيمكن تزويرها.
@@ -46,20 +48,59 @@ export async function updateSession(request: NextRequest) {
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
 
-  if (!user && !isPublic) {
+  if (user) {
+    // لا داعي لإبقاء شاشة الدخول متاحة لمن دخل أصلاً
+    if (pathname === "/login") {
+      const homeUrl = request.nextUrl.clone();
+      homeUrl.pathname = "/dashboard";
+      homeUrl.search = "";
+      return NextResponse.redirect(homeUrl);
+    }
+    return response;
+  }
+
+  /*
+    لا جلسة. هل النظام مفتوح؟
+
+    الفتح التلقائي يقع هنا لا في مكوّن خادم، لأن إنشاء الجلسة يكتب كوكيز
+    والمكوّنات لا تستطيع ذلك. ويقع مرة واحدة فقط: بعد نجاحه تصبح الكوكيز
+    موجودة فلا يتكرر مع كل طلب.
+  */
+  if (await isOpenAccessEnabled()) {
+    const token = await generateOwnerSessionToken();
+
+    if (token.ok) {
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: token.tokenHash,
+        type: "email",
+      });
+
+      if (!error) {
+        // الجلسة أُنشئت وكُتبت الكوكيز في response عبر setAll
+        if (pathname === "/login") {
+          const homeUrl = request.nextUrl.clone();
+          homeUrl.pathname = "/dashboard";
+          homeUrl.search = "";
+          return NextResponse.redirect(homeUrl);
+        }
+        return response;
+      }
+    }
+
+    /*
+      الفتح مفعّل لكن تعذّر إنشاء الجلسة — مفتاح إداري ناقص أو لا مالك
+      أو ترحيلات غير مطبَّقة. نسقط إلى شاشة الدخول بدل ترك المستخدم أمام
+      صفحة تفشل بلا تفسير؛ الشاشة تعرض سبباً مفهوماً.
+    */
+  }
+
+  if (!isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
     // نحفظ الوجهة الأصلية ليعود إليها المستخدم بعد الدخول.
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (user && pathname === "/login") {
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/dashboard";
-    homeUrl.search = "";
-    return NextResponse.redirect(homeUrl);
   }
 
   return response;

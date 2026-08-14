@@ -21,7 +21,13 @@ const NAV_ITEMS = [
   { href: "/settings", label: "الإعدادات", ready: true },
 ] as const;
 
-export function AppNav({ email }: { email: string }) {
+export function AppNav({
+  email,
+  openAccess,
+}: {
+  email: string;
+  openAccess: boolean;
+}) {
   const pathname = usePathname();
 
   return (
@@ -68,17 +74,33 @@ export function AppNav({ email }: { email: string }) {
         </nav>
 
         <div className="flex items-center gap-3">
-          <span className="text-muted hidden text-xs sm:inline" dir="ltr">
-            {email}
-          </span>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="text-muted hover:text-foreground text-sm"
+          {/*
+            مع الوصول المفتوح لا معنى لزر الخروج: الـ proxy ينشئ جلسة
+            جديدة فوراً، فالضغط عليه يبدو معطلاً. نعرض بدله تنبيهاً بأن
+            النظام مفتوح — وهي حقيقة يجب أن تبقى مرئية لا مخفية.
+          */}
+          {openAccess ? (
+            <span
+              title="أي شخص يعرف الرابط يدخل بصلاحية المالك"
+              className="bg-warning/10 text-warning rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
             >
-              خروج
-            </button>
-          </form>
+              نظام مفتوح
+            </span>
+          ) : (
+            <>
+              <span className="text-muted hidden text-xs sm:inline" dir="ltr">
+                {email}
+              </span>
+              <form action={logout}>
+                <button
+                  type="submit"
+                  className="text-muted hover:text-foreground text-sm"
+                >
+                  خروج
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </header>

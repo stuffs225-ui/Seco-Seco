@@ -94,3 +94,60 @@ export async function getAccessAccountEmail(): Promise<AccessAccountResult> {
   const email = data.user?.email;
   return email ? { kind: "ok", email } : { kind: "owner_without_email" };
 }
+
+/**
+ * هل النظام مفتوح بلا شاشة دخول؟
+ *
+ * يُقرأ بمفتاح الإدارة لأن السؤال يقع قبل وجود جلسة، وسياسة app_settings
+ * تشترط مستخدماً مسجَّلاً. الافتراضي عند أي تعذّر هو **مغلق**: لو رجّعنا
+ * «مفتوح» عند فشل القراءة لصار عطلٌ عابر في القاعدة سبباً في كشف النظام.
+ */
+export async function isOpenAccessEnabled(): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+
+    const { data, error } = await admin
+      .from("app_settings")
+      .select("value")
+      .eq("key", "open_access")
+      .maybeSingle<{ value: unknown }>();
+
+    if (error || !data) return false;
+    return data.value === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ينشئ جلسة للمالك دون كلمة مرور.
+ *
+ * يولّد رمز رابط سحري بمفتاح الإدارة ثم يستبدله بجلسة. الفائدة أن لا
+ * كلمة مرور تُخزَّن في متغير بيئة ولا في قاعدة البيانات لتحقيق الفتح
+ * التلقائي — المفتاح الإداري وحده يكفي.
+ *
+ * تُعاد الرموز ليستبدلها المنادي بجلسة على عميل يملك كتابة الكوكيز؛
+ * مكوّن الخادم لا يستطيع ذلك، فالنداء يقع في الـ proxy.
+ */
+export async function generateOwnerSessionToken(): Promise<
+  { ok: true; tokenHash: string; email: string } | { ok: false; reason: string }
+> {
+  const account = await getAccessAccountEmail();
+
+  if (account.kind !== "ok") {
+    return { ok: false, reason: account.kind };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: "magiclink",
+    email: account.email,
+  });
+
+  if (error) return { ok: false, reason: error.message };
+
+  const tokenHash = data.properties?.hashed_token;
+  if (!tokenHash) return { ok: false, reason: "لم يُنتج رمز جلسة" };
+
+  return { ok: true, tokenHash, email: account.email };
+}

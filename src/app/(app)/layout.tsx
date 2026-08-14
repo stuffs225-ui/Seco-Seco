@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/dal";
+import { isOpenAccessEnabled } from "@/lib/supabase/admin";
 
 import { AppNav } from "./app-nav";
 
@@ -11,11 +12,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireUser();
+  const [user, openAccess] = await Promise.all([
+    requireUser(),
+    isOpenAccessEnabled(),
+  ]);
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <AppNav email={user.email ?? ""} />
+      <AppNav email={user.email ?? ""} openAccess={openAccess} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
         {children}
       </main>

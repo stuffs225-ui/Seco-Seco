@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
+import { Card } from "@/components/domain/layout";
 import { requireUser } from "@/lib/auth/dal";
+import { isOpenAccessEnabled } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
 import { ROLE_LABELS, type AppSetting, type Profile } from "@/types/schema";
@@ -36,18 +38,21 @@ export default async function SettingsPage() {
   const user = await requireUser();
   const supabase = await createClient();
 
-  const [{ data: settings }, { data: profile }] = await Promise.all([
-    supabase
-      .from("app_settings")
-      .select("key, value, description, updated_at")
-      .order("key")
-      .returns<AppSetting[]>(),
-    supabase
-      .from("profiles")
-      .select("id, full_name, role, is_active, created_at, updated_at")
-      .eq("id", user.id)
-      .single<Profile>(),
-  ]);
+  const [{ data: settings }, { data: profile }, openAccess] = await Promise.all(
+    [
+      supabase
+        .from("app_settings")
+        .select("key, value, description, updated_at")
+        .order("key")
+        .returns<AppSetting[]>(),
+      supabase
+        .from("profiles")
+        .select("id, full_name, role, is_active, created_at, updated_at")
+        .eq("id", user.id)
+        .single<Profile>(),
+      isOpenAccessEnabled(),
+    ],
+  );
 
   return (
     <div className="space-y-8">
@@ -84,7 +89,36 @@ export default async function SettingsPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">الأمان</h2>
-        <AccessCodeForm />
+
+        {/*
+          الحالة المفتوحة تبقى مرئية دائماً.
+
+          خطر أن تُفعَّل «مؤقتاً» ثم تُنسى، والنظام يحمل التكلفة والربح
+          وأرصدة الموزعين. عرضها كبطاقة تحذير في مكان بارز أفضل من
+          إخفائها في صف داخل جدول إعدادات.
+        */}
+        {openAccess ? (
+          <Card className="border-warning/40 bg-warning/5 p-5">
+            <h3 className="text-warning font-semibold">
+              النظام مفتوح بلا شاشة دخول
+            </h3>
+            <p className="text-muted mt-2 text-sm">
+              أي شخص يفتح رابط الموقع يدخل بصلاحية المالك: يرى تكلفة الشراء
+              والأرباح وأرصدة الموزعين، ويستطيع التعديل والحذف. الرابط عام على
+              الإنترنت.
+            </p>
+            <p className="text-muted mt-3 text-sm">
+              لإعادة الدخول بالرمز، نفّذ في Supabase → SQL Editor:
+            </p>
+            <pre className="border-border bg-surface-muted mt-2 overflow-x-auto rounded-lg border p-3 text-xs">
+              <code dir="ltr">{`update public.app_settings
+set value = 'false'::jsonb
+where key = 'open_access';`}</code>
+            </pre>
+          </Card>
+        ) : (
+          <AccessCodeForm />
+        )}
       </section>
 
       <section className="space-y-3">
