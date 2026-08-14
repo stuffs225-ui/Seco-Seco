@@ -13,6 +13,7 @@
 begin;
 select * from no_plan();
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 select has_table('public', 'payments', 'جدول الدفعات موجود');
@@ -342,6 +343,19 @@ select is(
 
 -- ── الدفعات والتخصيصات لا تُحذف ───────────────────────────────────────
 
+/*
+  الحماية طبقتان: المنح تمنع دور authenticated من التعديل أصلاً (42501)،
+  والتريجر يمنع حتى من يملك المنح (23001). نختبر الاثنتين.
+*/
+select throws_ok(
+  $$ delete from public.payments $$,
+  '42501',  -- insufficient_privilege
+  null,
+  'الطبقة الأولى: دور authenticated لا يملك منح الحذف على الدفعات'
+);
+
+reset role;
+
 select throws_ok(
   $$ delete from public.payments $$,
   '23001',  -- restrict_violation
@@ -365,11 +379,13 @@ select throws_ok(
 
 -- ── الصلاحيات (§28) ────────────────────────────────────────────────────
 
+reset role;
 insert into auth.users (id, email)
 values ('00000000-0000-4000-8000-0000000000d1', 'ops@test.local');
 update public.profiles set role = 'operations'
 where id = '00000000-0000-4000-8000-0000000000d1';
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-0000000000d1","role":"authenticated"}';
 
 select throws_ok(
@@ -380,7 +396,9 @@ select throws_ok(
   '§28: العمليات لا تسجل تحصيلاً'
 );
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-0000000000c1","role":"authenticated"}';
+reset role;
 insert into auth.users (id, email)
 values ('00000000-0000-4000-8000-0000000000c1', 'coll3@test.local')
 on conflict (id) do nothing;
@@ -397,6 +415,7 @@ select throws_ok(
   '§28: عكس الدفعة يحتاج مشرفاً مالياً لا مسؤول تحصيل'
 );
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 select * from finish();

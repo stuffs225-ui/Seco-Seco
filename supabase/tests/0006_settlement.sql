@@ -13,6 +13,7 @@
 begin;
 select * from no_plan();
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 select has_table('public', 'deal_closing_snapshots', 'جدول لقطات الإغلاق موجود');
@@ -152,6 +153,24 @@ select is(
   (select realized_profit from public.v_deal_profit limit 1),
   'اللقطة حفظت الربح المحقق كما هو لحظة الإغلاق'
 );
+
+/*
+  الحماية طبقتان مستقلتان:
+    1. المنح: دور authenticated لا يملك UPDATE ولا DELETE على جداول
+       الحركات إطلاقاً، فيُرفض قبل الوصول للتريجر (42501).
+    2. التريجر: يرفض حتى لمن يملك المنح — مالك القاعدة مثلاً (23001).
+
+  نختبر الاثنتين: الأولى بدور authenticated، والثانية بدور مرتفع.
+*/
+
+select throws_ok(
+  $$ update public.deal_closing_snapshots set id = id $$,
+  '42501',  -- insufficient_privilege
+  null,
+  'الطبقة الأولى: دور authenticated لا يملك أصلاً منح التعديل على لقطات الإغلاق'
+);
+
+reset role;
 
 select throws_ok(
   $$ update public.deal_closing_snapshots set realized_profit = 0 $$,
@@ -302,11 +321,13 @@ select lives_ok(
 
 -- ── الصلاحيات (§28) ────────────────────────────────────────────────────
 
+reset role;
 insert into auth.users (id, email)
 values ('00000000-0000-4000-8000-0000000000e1', 'fin@test.local');
 update public.profiles set role = 'finance'
 where id = '00000000-0000-4000-8000-0000000000e1';
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-0000000000e1","role":"authenticated"}';
 
 select throws_ok(
@@ -331,6 +352,7 @@ select throws_ok(
   '§28: تسوية الوزن تحتاج مديراً'
 );
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 select is(

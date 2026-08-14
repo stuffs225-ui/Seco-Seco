@@ -139,6 +139,7 @@ select ok(
 
 -- ── الملف يُنشأ تلقائياً بأقل صلاحية ──────────────────────────────────
 
+reset role;
 insert into auth.users (id, email, raw_user_meta_data)
 values (
   '11111111-1111-1111-1111-111111111111',

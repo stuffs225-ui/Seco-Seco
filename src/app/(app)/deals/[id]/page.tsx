@@ -22,6 +22,7 @@ import {
 import { CreditResolution } from "./credit-resolution";
 import { SettlementPanel, type Reconciliation } from "./settlement-panel";
 import { QuantityActions } from "./quantity-actions";
+import { ReportPicker } from "./report-picker";
 
 export const metadata: Metadata = { title: "ملف الصفقة" };
 
@@ -308,6 +309,12 @@ export default async function DealWorkspacePage({
           />
         </section>
       ) : null}
+
+      {/* ── التقارير: الاختيار إلزامي قبل التوليد (§V5.1) ─────────── */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">التقارير</h2>
+        <ReportPicker dealId={deal.deal_id} />
+      </section>
 
       {/* ── دفتر الحركات (§24.2) ──────────────────────────────────── */}
       <section className="space-y-3">

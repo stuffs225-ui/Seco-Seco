@@ -12,6 +12,7 @@
 begin;
 select * from no_plan();
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 select has_table('public', 'deal_returns', 'جدول الاستردادات موجود');
@@ -266,6 +267,24 @@ select is(
 
 -- ── الاسترداد لا يُعدَّل ولا يُحذف ────────────────────────────────────
 
+/*
+  الحماية طبقتان مستقلتان:
+    1. المنح: دور authenticated لا يملك UPDATE ولا DELETE على جداول
+       الحركات إطلاقاً، فيُرفض قبل الوصول للتريجر (42501).
+    2. التريجر: يرفض حتى لمن يملك المنح — مالك القاعدة مثلاً (23001).
+
+  نختبر الاثنتين: الأولى بدور authenticated، والثانية بدور مرتفع.
+*/
+
+select throws_ok(
+  $$ update public.deal_returns set id = id $$,
+  '42501',  -- insufficient_privilege
+  null,
+  'الطبقة الأولى: دور authenticated لا يملك أصلاً منح التعديل على الاستردادات'
+);
+
+reset role;
+
 select throws_ok(
   $$ update public.deal_returns set returned_cost = 1 $$,
   '23001',  -- restrict_violation
@@ -290,11 +309,13 @@ select throws_ok(
 
 -- ── الصلاحيات (§28: استرداد كمية = Operations مع توثيق) ───────────────
 
+reset role;
 insert into auth.users (id, email)
 values ('00000000-0000-4000-8000-0000000000c1', 'collect2@test.local');
 update public.profiles set role = 'collections'
 where id = '00000000-0000-4000-8000-0000000000c1';
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-0000000000c1","role":"authenticated"}';
 
 select throws_ok(
@@ -305,6 +326,7 @@ select throws_ok(
   '§28: مسؤول التحصيل لا يسجل استرداد كمية'
 );
 
+set local role authenticated;
 set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
 
 select is(
