@@ -23,7 +23,9 @@
     "db:local": "scripts/local-db/setup.sh",
     "db:local:test": "scripts/local-db/test.sh",
     "db:demo": "supabase db execute --file supabase/seeds/demo.sql",
-    "db:local:demo": "sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d seco_seco_dev -f supabase/seeds/demo.sql"
+    "db:local:demo": "sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d seco_seco_dev -f supabase/seeds/demo.sql",
+    "bootstrap:build": "node scripts/build-bootstrap.mjs",
+    "bootstrap:check": "node scripts/build-bootstrap.mjs --check"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.8.0",
