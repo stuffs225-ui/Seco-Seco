@@ -209,5 +209,43 @@ select is(
   'تغيير إعداد محاسبي يُسجَّل في التدقيق'
 );
 
+-- ── تدقيق تغيير رمز الدخول (§11) ──────────────────────────────────────
+-- بقية هذا الملف تعمل بصلاحيات كاملة لأنها تختبر دوالّ نقية وقيوداً.
+-- هذا القسم يحتاج هوية فعلية: الدالة تنسب التغيير إلى auth.uid().
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+
+select has_function('public', 'log_access_code_changed', array[]::text[],
+  'دالة تقييد تغيير رمز الدخول موجودة');
+
+select lives_ok(
+  $$ select public.log_access_code_changed() $$,
+  'تقييد تغيير الرمز ينجح للمستخدم المسجَّل'
+);
+
+select is(
+  (select count(*)::int from public.audit_log
+   where action = 'access_code.changed'),
+  1,
+  '§11: تغيير رمز الدخول مُقيَّد في سجل التدقيق'
+);
+
+-- الرمز نفسه لا يُسجَّل — لا القديم ولا الجديد
+select is(
+  (select details from public.audit_log
+   where action = 'access_code.changed' limit 1),
+  '{}'::jsonb,
+  'السجل يثبت حدوث التغيير دون تسجيل الرمز نفسه'
+);
+
+select is(
+  (select actor_id from public.audit_log
+   where action = 'access_code.changed' limit 1),
+  '00000000-0000-4000-8000-000000000001'::uuid,
+  'التغيير منسوب لمن نفّذه'
+);
+
 select * from finish();
 rollback;

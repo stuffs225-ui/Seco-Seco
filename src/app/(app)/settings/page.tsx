@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format";
 import { ROLE_LABELS, type AppSetting, type Profile } from "@/types/schema";
 
+import { AccessCodeForm } from "./access-code-form";
+
 export const metadata: Metadata = { title: "الإعدادات" };
 
 /**
@@ -78,6 +80,11 @@ export default async function SettingsPage() {
             </div>
           </dl>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">الأمان</h2>
+        <AccessCodeForm />
       </section>
 
       <section className="space-y-3">

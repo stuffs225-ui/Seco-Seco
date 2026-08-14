@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
-import { LoginForm } from "./login-form";
+import { CodeForm } from "./code-form";
 
-export const metadata: Metadata = { title: "تسجيل الدخول" };
+export const metadata: Metadata = { title: "الدخول" };
 
 export default async function LoginPage({
   searchParams,
@@ -22,11 +23,24 @@ export default async function LoginPage({
         </div>
 
         <div className="border-border bg-surface rounded-xl border p-6 shadow-sm">
-          <LoginForm next={next} />
+          <CodeForm next={next} />
         </div>
 
         <p className="text-muted mt-6 text-center text-xs">
-          الوصول بالدعوة فقط. راجع مدير النظام لإنشاء حساب.
+          يمكن تغيير الرمز من الإعدادات بعد الدخول.
+        </p>
+
+        <p className="mt-2 text-center text-xs">
+          <Link
+            href={
+              next
+                ? `/login/email?next=${encodeURIComponent(next)}`
+                : "/login/email"
+            }
+            className="text-muted hover:text-foreground underline"
+          >
+            الدخول ببريد وكلمة مرور
+          </Link>
         </p>
       </div>
     </main>

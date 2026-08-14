@@ -9,7 +9,7 @@
 
 -- ── مستخدم تطوير بصلاحية المالك ────────────────────────────────────────
 --   البريد:      owner@seco.local
---   كلمة المرور: SecoSeco2026!
+--   رمز الدخول:  Aa123123
 
 insert into auth.users (
   id,
@@ -30,7 +30,7 @@ values (
   'authenticated',
   'authenticated',
   'owner@seco.local',
-  crypt('SecoSeco2026!', gen_salt('bf')),
+  crypt('Aa123123', gen_salt('bf')),
   now(),
   '{"provider": "email", "providers": ["email"]}'::jsonb,
   '{"full_name": "مالك النظام"}'::jsonb,
