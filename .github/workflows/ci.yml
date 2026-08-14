@@ -35,6 +35,15 @@ jobs:
       - name: اختبارات الوحدة
         run: npm run test
 
+      # البناء يكشف ما لا تكشفه فحوص الأنواع: أخطاء التصيير المسبق
+      # وجمع بيانات الصفحات. القيم هنا وهمية صالحة الشكل — الغرض إثبات
+      # أن البناء يمر، لا الاتصال بقاعدة حقيقية.
+      - name: بناء التطبيق
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+
   database:
     name: اختبارات قاعدة البيانات
     runs-on: ubuntu-latest
