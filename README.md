@@ -101,9 +101,25 @@ npm run db:local:test     # يشغّل نفس اختبارات pgTAP
 <details>
 <summary>البديل اليدوي</summary>
 
-Vercel → Project → **Settings → Environment Variables**، وأضف الثلاثة الأولى من `Settings → Data API` في Supabase.
+Vercel → Project → **Settings → Environment Variables**، وأضف من `Settings → Data API` في Supabase:
 
-⚠️ `SUPABASE_SERVICE_ROLE_KEY` يُضاف **بدون** بادئة `NEXT_PUBLIC_`. هذا المفتاح يتجاوز كل سياسات RLS، وإضافة البادئة له تسرّبه إلى كل متصفح يفتح الموقع.
+| المفتاح                         | البيئات                            |
+| ------------------------------- | ---------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Production · Preview · Development |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Production · Preview · Development |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Production فقط                     |
+
+⚠️ **الاسم يجب أن يبدأ بـ `NEXT_PUBLIC_` بالضبط.** هذه ليست تسمية اختيارية:
+Next.js يحقن في المتصفح المتغيرات التي تحمل هذه البادئة وحدها. اسم مثل
+`PUBLIC_SUPABASE_URL` يصل الخادم لكنه يصل المتصفح كـ `undefined`، فيفشل
+تسجيل الدخول بلا رسالة خطأ واضحة.
+
+⚠️ `SUPABASE_SERVICE_ROLE_KEY` يُضاف **بدون** أي بادئة. هذا المفتاح يتجاوز كل سياسات RLS، وإضافة `NEXT_PUBLIC_` له تسرّبه إلى كل متصفح يفتح الموقع.
+
+⚠️ اضبط أيضاً **Settings → General → Framework Preset = Next.js**. مع
+إعداد آخر يبحث Vercel عن مجلد `public` كمخرج للبناء ويفشل النشر برسالة
+`No Output Directory named "public"` رغم نجاح البناء نفسه. ملف
+`vercel.json` في جذر المشروع يثبّت هذا الإعداد، لكن تأكد منه في اللوحة.
 </details>
 
 ### 3. ربط الريبو بـ Vercel
