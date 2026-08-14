@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import {
   Card,
@@ -115,6 +116,9 @@ export default async function InventoryPage() {
                 <Th align="end">التكلفة الإجمالية</Th>
                 <Th align="end">المتاح</Th>
                 <Th align="end">لدى الموزعين</Th>
+                <Th>
+                  <span className="sr-only">إجراءات</span>
+                </Th>
               </tr>
             </thead>
             <tbody className="divide-border divide-y">
@@ -147,6 +151,17 @@ export default async function InventoryPage() {
                   </Td>
                   <Td align="end">
                     <Weight value={lot.out_weight_g} className="text-muted" />
+                  </Td>
+                  <Td align="end">
+                    {Number(lot.on_hand_weight_g) ===
+                    Number(lot.purchased_weight_g) ? (
+                      <Link
+                        href={`/inventory/${lot.lot_id}/correct`}
+                        className="text-primary text-xs font-medium hover:underline"
+                      >
+                        تصحيح
+                      </Link>
+                    ) : null}
                   </Td>
                 </tr>
               ))}

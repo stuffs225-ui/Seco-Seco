@@ -19,6 +19,34 @@ import { generateOwnerSessionToken } from "./admin";
  * تقع هنا لا في مكوّن خادم لأن إنشاء الجلسة يكتب كوكيز والمكوّنات لا
  * تستطيع ذلك. ومرة واحدة فقط: بعد نجاحها تصبح الكوكيز موجودة فلا تتكرر.
  */
+/**
+ * يُضاف على الطلب الداخلي المُمرَّر لشجرة React، لا على رد المتصفح —
+ * الفرق جوهري: `response.headers` يصل العميل، بينما هذا يصل `headers()`
+ * داخل مكوّنات الخادم عبر `NextResponse.next({ request: { headers } })`.
+ *
+ * `dal.ts` يثق به لتفادي نداء `getUser()` ثانٍ عبر الشبكة لكل صفحة —
+ * موثوق لأن هذا الموضع الوحيد الذي يضبطه، ويستبدل أي قيمة قد يرسلها
+ * العميل لنفس الاسم دون شرط، فلا يمكن تزويره.
+ */
+const VERIFIED_HEADER = "x-seco-verified";
+
+function withVerifiedHeader(
+  request: NextRequest,
+  cookiesFrom: NextResponse,
+): NextResponse {
+  const headers = new Headers(request.headers);
+  headers.set(VERIFIED_HEADER, "1");
+
+  const response = NextResponse.next({ request: { headers } });
+
+  // أي كوكيز تجدّدت أثناء التحقق (تجديد توكن) يجب أن تصل المتصفح أيضاً
+  cookiesFrom.cookies
+    .getAll()
+    .forEach((cookie) => response.cookies.set(cookie));
+
+  return response;
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -47,7 +75,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) return response;
+  if (user) return withVerifiedHeader(request, response);
 
   // ── لا جلسة: ننشئ جلسة المالك ────────────────────────────────────────
 
@@ -59,7 +87,7 @@ export async function updateSession(request: NextRequest) {
       type: "email",
     });
 
-    if (!error) return response;
+    if (!error) return withVerifiedHeader(request, response);
   }
 
   /*

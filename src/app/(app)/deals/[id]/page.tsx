@@ -20,6 +20,7 @@ import {
 } from "@/types/deals";
 
 import { CreditResolution } from "./credit-resolution";
+import { PaymentQuickForm } from "./payment-quick-form";
 import { SettlementPanel, type Reconciliation } from "./settlement-panel";
 import { QuantityActions } from "./quantity-actions";
 import { ReportPicker } from "./report-picker";
@@ -42,12 +43,23 @@ export default async function DealWorkspacePage({
 
   if (!deal) notFound();
 
+  /*
+    مرحلة شبكة واحدة لا ثلاث.
+
+    الرصيد الدائن حالة مشتقة من `deal` (§24.5) لا تحتاج استعلاماً منفصلاً
+    لتحديدها، فاستعلاماتها تُجلب هنا دون شرط مع البقية بدل مرحلة لاحقة
+    منفصلة — استعلامات مفهرَسة رخيصة، وتفادي مرحلة شبكة كاملة يستحق كلفتها
+    حتى حين لا حاجة فعلية للنتيجة.
+  */
   const [
     { data: profit },
     { data: ledger },
     { data: line },
     { data: distributor },
     { data: recon },
+    { data: credit },
+    { data: siblingDeals },
+    { data: accounts },
   ] = await Promise.all([
     supabase
       .from("v_deal_profit")
@@ -80,37 +92,31 @@ export default async function DealWorkspacePage({
       .select("*")
       .eq("deal_id", id)
       .single<Reconciliation>(),
+    supabase
+      .from("v_distributor_credits")
+      .select("unresolved_amount")
+      .eq("deal_id", id)
+      .maybeSingle<{ unresolved_amount: string }>(),
+    supabase
+      .from("v_deal_status")
+      .select("deal_id, deal_no")
+      .eq("distributor_id", deal.distributor_id)
+      .neq("deal_id", id)
+      .not("deal_status", "in", '("closed","cancelled")')
+      .returns<{ deal_id: string; deal_no: string }[]>(),
+    supabase
+      .from("cash_accounts")
+      .select("id, name")
+      .eq("is_active", true)
+      .returns<{ id: string; name: string }[]>(),
   ]);
 
-  // الرصيد الدائن حالة مشتقة من الصفقة، لا جدول (§24.5)
   const hasCredit = Number(deal.remaining_balance) < 0;
-
-  const [{ data: credit }, { data: siblingDeals }, { data: accounts }] =
-    hasCredit
-      ? await Promise.all([
-          supabase
-            .from("v_distributor_credits")
-            .select("unresolved_amount")
-            .eq("deal_id", id)
-            .maybeSingle<{ unresolved_amount: string }>(),
-          supabase
-            .from("v_deal_status")
-            .select("deal_id, deal_no")
-            .eq("distributor_id", deal.distributor_id)
-            .neq("deal_id", id)
-            .not("deal_status", "in", '("closed","cancelled")')
-            .returns<{ deal_id: string; deal_no: string }[]>(),
-          supabase
-            .from("cash_accounts")
-            .select("id, name")
-            .eq("is_active", true)
-            .returns<{ id: string; name: string }[]>(),
-        ])
-      : [{ data: null }, { data: [] }, { data: [] }];
 
   const canSell =
     Number(deal.open_weight_g) > 0 &&
     !["closed", "cancelled"].includes(deal.deal_status);
+  const canRecordPayment = !["closed", "cancelled"].includes(deal.deal_status);
 
   return (
     <div className="space-y-6">
@@ -201,6 +207,16 @@ export default async function DealWorkspacePage({
           />
         </div>
       </section>
+
+      {/* ── تسجيل دفعة مباشرة على هذه الصفقة (§24.4) ──────────────── */}
+      {canRecordPayment ? (
+        <PaymentQuickForm
+          dealId={deal.deal_id}
+          distributorId={deal.distributor_id}
+          remainingBalance={deal.remaining_balance}
+          accounts={accounts ?? []}
+        />
+      ) : null}
 
       {/*
         القسم الداخلي الحساس.

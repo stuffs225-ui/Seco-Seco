@@ -239,5 +239,149 @@ select is(
   'نفس الصنف بدفعتين وتكلفتَي جرام مختلفتين — لا متوسط مرجّح (§2)'
 );
 
+-- ═══════════════════════════════════════════════════════════════════════
+-- تصحيح دفعة شراء (0018) — §26: لا تعديل مباشر، حركة عكسية فقط
+-- ═══════════════════════════════════════════════════════════════════════
+
+insert into public.items (id, code, name)
+values ('bbbbbbbb-0000-4000-8000-000000000001', 'ITM-COR', 'صنف التصحيح');
+
+-- ── تصحيح دفعة غير مُستهلَكة ينجح ──────────────────────────────────────
+
+select public.create_purchase_lot(
+  'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
+  '2026-03-01'::date, 1000::weight_grams, 17500::money_amount
+);
+
+/*
+  تاريخ الدفعة المصححة مختلف عمداً عن الأصلية (03-02 لا 03-01) — الملف
+  كله معاملة pgTAP واحدة و`now()` مجمَّد طوالها، فالدفعتان تتشاركان
+  created_at ولا يصح تمييزهما به. تاريخ استلام مختلف يجعل كل دفعة قابلة
+  للتحديد بدقة بلا لبس، دون حاجة للاعتماد على ترتيب الإنشاء.
+*/
+select lives_ok(
+  $$ select public.correct_purchase_lot(
+       (select id from public.lots
+        where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+          and received_date = '2026-03-01'),
+       'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
+       '2026-03-02'::date, 1000::weight_grams, 18000::money_amount,
+       'خطأ إدخال: القيمة الصحيحة 18,000 لا 17,500'
+     ) $$,
+  'تصحيح دفعة غير مُستهلَكة ينجح'
+);
+
+select is(
+  (select on_hand_weight_g from public.v_lot_stock
+   where lot_id = (
+     select id from public.lots
+     where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+       and received_date = '2026-03-01'
+   )),
+  0::weight_grams,
+  'الدفعة القديمة أُلغيت بالكامل — رصيدها صفر'
+);
+
+select is(
+  (select cost_per_g from public.lots
+   where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+     and received_date = '2026-03-02'),
+  18::rate_per_gram,
+  'الدفعة الجديدة بالقيمة المصححة: 18,000 ÷ 1,000 = 18.00'
+);
+
+select is(
+  (select count(*)::int from public.inventory_ledger le
+   join public.lots l on l.id = le.lot_id
+   where l.item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+     and le.entry_type = 'ADJUSTMENT'),
+  1,
+  'حركة عكسية واحدة تُلغي الدفعة القديمة — لا UPDATE مباشر'
+);
+
+select is(
+  (select count(*)::int from public.audit_log
+   where action = 'lot.corrected'),
+  1,
+  'التصحيح يُقيَّد في سجل التدقيق'
+);
+
+select ok(
+  (select (details ->> 'corrects_lot_id') is not null
+   from public.audit_log where action = 'lot.corrected'),
+  'سجل التدقيق يحفظ معرّف الدفعة الملغاة'
+);
+
+-- ── السبب إلزامي ───────────────────────────────────────────────────────
+-- فحص السبب يقع قبل أي بحث عن الدفعة، فحالتها هنا (مُصحَّحة سلفاً) لا تؤثر
+
+select throws_ok(
+  $$ select public.correct_purchase_lot(
+       (select id from public.lots
+        where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+          and received_date = '2026-03-01'),
+       'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
+       '2026-03-01'::date, 1000::weight_grams, 18000::money_amount,
+       ''
+     ) $$,
+  '23514',  -- check_violation
+  null,
+  'سبب فارغ مرفوض'
+);
+
+-- ── دفعة خرج منها وزن لا يمكن تصحيحها ──────────────────────────────────
+
+insert into public.distributors (id, code, name)
+values ('bbbbbbbb-0000-4000-8000-000000000002', 'DST-COR', 'موزع التصحيح');
+
+select public.create_purchase_lot(
+  'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
+  '2026-03-05'::date, 800::weight_grams, 14000::money_amount
+);
+
+select public.open_deal(
+  'bbbbbbbb-0000-4000-8000-000000000002'::uuid,
+  (select id from public.lots
+   where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+     and received_date = '2026-03-05'),
+  300::weight_grams, 8000::money_amount, '2026-03-06'::date
+);
+
+select throws_ok(
+  $$ select public.correct_purchase_lot(
+       (select id from public.lots
+        where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+          and received_date = '2026-03-05'),
+       'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
+       '2026-03-05'::date, 800::weight_grams, 15000::money_amount,
+       'محاولة تصحيح دفعة مُستهلكة جزئياً'
+     ) $$,
+  '23514',
+  null,
+  'دفعة سُلِّم جزء منها لموزع لا يمكن تصحيحها'
+);
+
+-- ── الصلاحيات (§28) ────────────────────────────────────────────────────
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-0000000000a2","role":"authenticated"}';
+
+select throws_ok(
+  $$ select public.correct_purchase_lot(
+       (select id from public.lots
+        where item_id = 'bbbbbbbb-0000-4000-8000-000000000001'
+          and received_date = '2026-03-01'),
+       'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
+       '2026-03-01'::date, 1000::weight_grams, 18000::money_amount,
+       'المدقق يحاول التصحيح'
+     ) $$,
+  '42501',  -- insufficient_privilege
+  null,
+  'المدقق لا يستطيع تصحيح دفعة'
+);
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
 select * from finish();
 rollback;

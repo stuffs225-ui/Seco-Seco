@@ -84,6 +84,11 @@ export async function recordPayment(
 
   revalidatePath("/payments");
   revalidatePath("/deals");
+  if (parsed.data.allocation_mode === "specific") {
+    for (const allocation of parsed.data.allocations) {
+      revalidatePath(`/deals/${allocation.deal_id}`);
+    }
+  }
   return { error: null, success: "تم تسجيل التحصيل" };
 }
 

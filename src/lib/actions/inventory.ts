@@ -91,6 +91,79 @@ export async function createPurchaseLot(
   return { error: null, success: String(data) };
 }
 
+const correctLotSchema = z.object({
+  old_lot_id: z.uuid(),
+  item_id: z.uuid("اختر صنفاً"),
+  supplier_id: z.union([z.uuid(), z.literal("")]).optional(),
+  purchase_date: z.string().min(1, "التاريخ مطلوب"),
+  weight_g: numericString,
+  purchase_value: numericString,
+  invoice_ref: z.string().trim().default(""),
+  notes: z.string().trim().default(""),
+  expenses: z.array(expenseSchema).default([]),
+  reason: z.string().trim().min(1, "سبب التصحيح إلزامي"),
+});
+
+/**
+ * تصحيح دفعة لم يخرج منها وزن بعد — لا UPDATE مباشر (§26). الدالة في
+ * القاعدة تلغي الدفعة القديمة بحركة عكسية وتنشئ دفعة جديدة بالقيم
+ * المصححة، معاملة ذرية واحدة. ترفض إن كان قد صُرِّف أو استُرد منها شيء.
+ */
+export async function correctPurchaseLot(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  let expenses: unknown = [];
+  const rawExpenses = formData.get("expenses");
+  if (typeof rawExpenses === "string" && rawExpenses.trim() !== "") {
+    try {
+      expenses = JSON.parse(rawExpenses);
+    } catch {
+      return { error: "تعذّرت قراءة بيانات المصاريف" };
+    }
+  }
+
+  const parsed = correctLotSchema.safeParse({
+    old_lot_id: formData.get("old_lot_id"),
+    item_id: formData.get("item_id"),
+    supplier_id: formData.get("supplier_id") ?? "",
+    purchase_date: formData.get("purchase_date"),
+    weight_g: formData.get("weight_g"),
+    purchase_value: formData.get("purchase_value"),
+    invoice_ref: formData.get("invoice_ref") ?? "",
+    notes: formData.get("notes") ?? "",
+    expenses,
+    reason: formData.get("reason") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("correct_purchase_lot", {
+    p_old_lot_id: parsed.data.old_lot_id,
+    p_item_id: parsed.data.item_id,
+    p_purchase_date: parsed.data.purchase_date,
+    p_weight_g: parsed.data.weight_g,
+    p_purchase_value: parsed.data.purchase_value,
+    p_reason: parsed.data.reason,
+    p_supplier_id: parsed.data.supplier_id || null,
+    p_invoice_ref: parsed.data.invoice_ref,
+    p_notes: parsed.data.notes,
+    p_expenses: parsed.data.expenses,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory");
+  return { error: null, success: String(data) };
+}
+
 const createItemSchema = z.object({
   code: z.string().trim().min(1, "كود الصنف مطلوب"),
   name: z.string().trim().min(1, "اسم الصنف مطلوب"),

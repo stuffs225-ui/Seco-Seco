@@ -1,12 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Card } from "@/components/domain/layout";
-import { createPurchaseLot, type ActionState } from "@/lib/actions/inventory";
-import { formatMoney, formatPerGram } from "@/lib/format";
+import {
+  correctPurchaseLot,
+  createPurchaseLot,
+  type ActionState,
+} from "@/lib/actions/inventory";
+import { formatMoney, formatPerGram, formatWeight } from "@/lib/format";
 
 type Item = { id: string; code: string; name: string };
 type Supplier = { id: string; name: string };
@@ -16,12 +20,27 @@ type Expense = {
   include_in_cost: boolean;
 };
 
+/** قيم الدفعة القديمة المطلوب تصحيحها — تُعبّئ النموذج وتُبنى منها لوحة المقارنة. */
+type CorrectionSource = {
+  oldLotId: string;
+  oldLotNo: string;
+  weightG: string;
+  purchaseValue: string;
+  costPerGram: string;
+  totalCost: string;
+  itemId: string;
+  supplierId: string;
+  purchaseDate: string;
+  invoiceRef: string;
+  notes: string;
+};
+
 const initialState: ActionState = { error: null };
 
 const fieldClass =
   "border-border bg-background focus:border-primary w-full rounded-lg border px-3 py-2 text-sm outline-none";
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -29,7 +48,7 @@ function SubmitButton() {
       disabled={pending}
       className="bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
     >
-      {pending ? "جارٍ الحفظ…" : "حفظ الشراء وإنشاء الدفعة"}
+      {pending ? "جارٍ الحفظ…" : label}
     </button>
   );
 }
@@ -47,16 +66,32 @@ function parseNumber(raw: string): number {
 export function PurchaseForm({
   items,
   suppliers,
+  correction,
 }: {
   items: Item[];
   suppliers: Supplier[];
+  /** وجوده يحوّل النموذج لوضع تصحيح دفعة قائمة بدل إنشاء واحدة جديدة. */
+  correction?: CorrectionSource;
 }) {
   const router = useRouter();
-  const [state, formAction] = useActionState(createPurchaseLot, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+  const isCorrection = correction != null;
 
-  const [weight, setWeight] = useState("");
-  const [value, setValue] = useState("");
+  const [state, formAction] = useActionState(
+    isCorrection ? correctPurchaseLot : createPurchaseLot,
+    initialState,
+  );
+
+  const [weight, setWeight] = useState(correction?.weightG ?? "");
+  const [value, setValue] = useState(correction?.purchaseValue ?? "");
   const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  /*
+    خطوة التأكيد قبل اعتماد التصحيح — طلب صريح: النموذج لا يحفظ عند
+    أول ضغط، بل يعرض مقارنة قبل/بعد ويطلب تأكيداً ثانياً. تغيير الوزن
+    أو القيمة بعد المراجعة يلغي التأكيد فيعرض القيم الجديدة لا القديمة.
+  */
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (state.success) router.push("/inventory");
@@ -95,22 +130,33 @@ export function PurchaseForm({
     }));
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} className="space-y-6">
       <input
         type="hidden"
         name="expenses"
         value={JSON.stringify(validExpenses)}
       />
+      {isCorrection ? (
+        <input type="hidden" name="old_lot_id" value={correction.oldLotId} />
+      ) : null}
 
       <Card className="space-y-4 p-5">
-        <h2 className="font-semibold">بيانات الشراء</h2>
+        <h2 className="font-semibold">
+          {isCorrection ? `تصحيح دفعة ${correction.oldLotNo}` : "بيانات الشراء"}
+        </h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <label htmlFor="item_id" className="block text-sm font-medium">
               الصنف
             </label>
-            <select id="item_id" name="item_id" required className={fieldClass}>
+            <select
+              id="item_id"
+              name="item_id"
+              required
+              defaultValue={correction?.itemId ?? ""}
+              className={fieldClass}
+            >
               <option value="">اختر الصنف</option>
               {items.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -124,7 +170,12 @@ export function PurchaseForm({
             <label htmlFor="supplier_id" className="block text-sm font-medium">
               المورد <span className="text-muted font-normal">(اختياري)</span>
             </label>
-            <select id="supplier_id" name="supplier_id" className={fieldClass}>
+            <select
+              id="supplier_id"
+              name="supplier_id"
+              defaultValue={correction?.supplierId ?? ""}
+              className={fieldClass}
+            >
               <option value="">بدون مورد محدد</option>
               {suppliers.map((supplier) => (
                 <option key={supplier.id} value={supplier.id}>
@@ -146,7 +197,10 @@ export function PurchaseForm({
               name="purchase_date"
               type="date"
               required
-              defaultValue={new Date().toISOString().slice(0, 10)}
+              defaultValue={
+                correction?.purchaseDate ??
+                new Date().toISOString().slice(0, 10)
+              }
               className={`${fieldClass} num`}
             />
           </div>
@@ -160,6 +214,7 @@ export function PurchaseForm({
               id="invoice_ref"
               name="invoice_ref"
               type="text"
+              defaultValue={correction?.invoiceRef ?? ""}
               className={fieldClass}
             />
           </div>
@@ -174,10 +229,18 @@ export function PurchaseForm({
               inputMode="decimal"
               required
               value={weight}
-              onChange={(e) => setWeight(e.target.value)}
+              onChange={(e) => {
+                setWeight(e.target.value);
+                setConfirmed(false);
+              }}
               placeholder="1200"
               className={`${fieldClass} num`}
             />
+            {isCorrection ? (
+              <p className="text-muted text-xs">
+                كان: {formatWeight(correction.weightG)}
+              </p>
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
@@ -193,10 +256,18 @@ export function PurchaseForm({
               inputMode="decimal"
               required
               value={value}
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e) => {
+                setValue(e.target.value);
+                setConfirmed(false);
+              }}
               placeholder="21000"
               className={`${fieldClass} num`}
             />
+            {isCorrection ? (
+              <p className="text-muted text-xs">
+                كانت: {formatMoney(correction.purchaseValue)}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -204,8 +275,30 @@ export function PurchaseForm({
           <label htmlFor="notes" className="block text-sm font-medium">
             ملاحظات
           </label>
-          <textarea id="notes" name="notes" rows={2} className={fieldClass} />
+          <textarea
+            id="notes"
+            name="notes"
+            rows={2}
+            defaultValue={correction?.notes ?? ""}
+            className={fieldClass}
+          />
         </div>
+
+        {isCorrection ? (
+          <div className="space-y-1.5">
+            <label htmlFor="reason" className="block text-sm font-medium">
+              سبب التصحيح <span className="text-negative">*</span>
+            </label>
+            <input
+              id="reason"
+              name="reason"
+              required
+              placeholder="سبب التصحيح — إلزامي ويظهر في سجل التدقيق"
+              onChange={() => setConfirmed(false)}
+              className={fieldClass}
+            />
+          </div>
+        ) : null}
       </Card>
 
       <Card className="space-y-4 p-5">
@@ -301,7 +394,7 @@ export function PurchaseForm({
         )}
       </Card>
 
-      {preview ? (
+      {preview && !isCorrection ? (
         <Card className="border-primary/30 bg-primary/5 p-5">
           <h2 className="font-semibold">معاينة قبل الحفظ</h2>
           <dl className="mt-3 grid gap-4 sm:grid-cols-3">
@@ -330,6 +423,51 @@ export function PurchaseForm({
         </Card>
       ) : null}
 
+      {/*
+        لوحة قبل/بعد للتصحيح — الخطوة التي طلبها المالك صراحة: لا حفظ
+        عند أول ضغط، بل مراجعة الأثر ثم تأكيد منفصل. القيم النهائية
+        تحسبها قاعدة البيانات عند الحفظ الفعلي؛ هذه معاينة فقط.
+      */}
+      {isCorrection && preview ? (
+        <Card className="border-warning/40 bg-warning/5 p-5">
+          <h2 className="font-semibold">مقارنة قبل ← بعد</h2>
+          <dl className="mt-3 grid gap-4 sm:grid-cols-3">
+            <div>
+              <dt className="text-muted text-xs">الوزن</dt>
+              <dd className="num mt-1 font-medium">
+                {formatWeight(correction.weightG)} ←{" "}
+                <span className="font-semibold">{formatWeight(weight)}</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">التكلفة الإجمالية</dt>
+              <dd className="num mt-1 font-medium">
+                {formatMoney(correction.totalCost)} ←{" "}
+                <span className="font-semibold">
+                  {formatMoney(preview.totalCost)}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted text-xs">تكلفة الجرام</dt>
+              <dd className="num mt-1 font-medium">
+                {formatPerGram(correction.costPerGram)} ←{" "}
+                <span className="font-semibold">
+                  {formatPerGram(preview.costPerGram)}
+                </span>
+              </dd>
+            </div>
+          </dl>
+
+          {confirmed ? (
+            <p className="text-warning mt-4 text-sm font-medium">
+              الدفعة القديمة ستُلغى نهائياً وتُستبدل بدفعة جديدة بهذه القيم —
+              هذا الإجراء لا يمكن التراجع عنه بعد الحفظ.
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
+
       {state.error ? (
         <p
           role="alert"
@@ -339,8 +477,33 @@ export function PurchaseForm({
         </p>
       ) : null}
 
-      <div className="flex justify-end">
-        <SubmitButton />
+      <div className="flex justify-end gap-3">
+        {isCorrection ? (
+          confirmed ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setConfirmed(false)}
+                className="border-border rounded-lg border px-5 py-2.5 text-sm font-medium"
+              >
+                تراجع
+              </button>
+              <SubmitButton label="تأكيد وحفظ التصحيح" />
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (formRef.current?.reportValidity()) setConfirmed(true);
+              }}
+              className="bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+            >
+              مراجعة التصحيح قبل الحفظ
+            </button>
+          )
+        ) : (
+          <SubmitButton label="حفظ الشراء وإنشاء الدفعة" />
+        )}
       </div>
     </form>
   );
