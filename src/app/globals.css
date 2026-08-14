@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/*
+  نظام الألوان — نغمة واحدة للنظام كله.
+  كل لون يُعرّف مرة في :root ثم يُعاد تعريفه في الوضع الداكن.
+  الشاشات تستخدم الرموز (bg-surface, text-muted...) ولا تكتب ألواناً مباشرة.
+*/
+:root {
+  --background: #f6f7f9;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --foreground: #101828;
+  --muted: #667085;
+  --border: #e4e7ec;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --accent: #0369a1;
+
+  /* دلالات مالية ثابتة عبر النظام */
+  --positive: #047857; /* ربح، سداد، رصيد لصالحنا */
+  --negative: #b42318; /* عجز، تجاوز، متأخر */
+  --warning: #b54708; /* يحتاج انتباه أو تسوية */
+  --info: #175cd3; /* معلومة محايدة */
+
+  /* التقارير — الفصل البصري بين الداخلي والخارجي (البند V5.8) */
+  --internal: #7a2e0e; /* شريط «سري - داخلي» */
+  --external: #175cd3; /* شريط «خارجي - موزع» */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1120;
+    --surface: #131c31;
+    --surface-muted: #1b2540;
+    --foreground: #e8ecf4;
+    --muted: #98a2b3;
+    --border: #263352;
+    --primary: #2dd4bf;
+    --primary-foreground: #04211d;
+    --accent: #38bdf8;
+
+    --positive: #34d399;
+    --negative: #f87171;
+    --warning: #fbbf24;
+    --info: #60a5fa;
+
+    --internal: #fb923c;
+    --external: #60a5fa;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-internal: var(--internal);
+  --color-external: var(--external);
+
+  --font-sans: var(--font-arabic), system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/*
+  الأرقام والمعرفات تبقى LTR داخل نص عربي.
+  استخدم <span class="num"> لكل مبلغ ووزن ورقم صفقة وتاريخ.
+*/
+.num {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+/* أنماط الطباعة — أساس توليد PDF من المتصفح (قرار المعمارية) */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  :root {
+    --background: #ffffff;
+    --surface: #ffffff;
+    --surface-muted: #ffffff;
+    --foreground: #000000;
+    --muted: #444444;
+    --border: #999999;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  /* لا نقطع صفاً من جدول أو بطاقة عبر صفحتين */
+  tr,
+  .print-keep {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+}

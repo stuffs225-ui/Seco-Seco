@@ -1,0 +1,6 @@
+.next
+node_modules
+package-lock.json
+src/types/database.ts
+docs/master-plan.md
+supabase/.temp

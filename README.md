@@ -1,0 +1,145 @@
+# سيكو سيكو
+
+نظام إدارة الشراء بالوزن، والتوزيع على الموزعين على التصريف، والتحصيل، والربحية، والشراكة.
+
+مصدر الحقيقة لمتطلبات النظام هو `docs/master-plan.md`. أي سلوك غير موصوف هناك يُسأل عنه ولا يُجتهد فيه.
+
+---
+
+## المبادئ المعمارية الثلاثة
+
+هذه ليست تفضيلات — كل قرار في الشيفرة يخضع لها:
+
+1. **الصفقة (Deal) هي الكيان المحوري** لكل تعامل مع الموزع. لا يوجد تسليم أو بيع أو تحصيل أو استرداد خارج صفقة.
+2. **الـ Ledger هو مصدر الحقيقة.** لا يُخزَّن رصيد كرقم قابل للتعديل — كل رصيد يُشتق من مجموع الحركات المعتمدة. جداول الـ Ledger لا تقبل `UPDATE` ولا `DELETE`؛ التصحيح بحركة عكسية.
+3. **الحساب في قاعدة البيانات لا في الواجهة.** كل قراءة رقمية تأتي من View، وكل تغيير يمر عبر دالة RPC داخل معاملة ذرية مع تحقق صلاحية وسجل تدقيق.
+
+نتيجة عملية: **الواجهة لا تحسب رقماً مالياً واحداً.** أي حساب مالي أو كمي في TypeScript هو خطأ يجب رفضه في المراجعة.
+
+---
+
+## التشغيل محلياً
+
+المتطلبات: Node 22+ و Docker.
+
+```bash
+npm install
+cp .env.example .env.local
+
+npm run db:start          # يشغّل Postgres محلياً (أول مرة تستغرق دقائق)
+npx supabase status       # انسخ API URL و anon key إلى .env.local
+
+npm run db:reset          # يبني القاعدة من الترحيلات + seed
+npm run db:types          # يولّد أنواع TypeScript من القاعدة
+npm run dev               # http://localhost:3000
+```
+
+### الأوامر
+
+| الأمر                  | الوظيفة                                                |
+| ---------------------- | ------------------------------------------------------ |
+| `npm run dev`          | خادم التطوير                                           |
+| `npm run verify`       | الأنواع + التدقيق + الاختبارات — شغّله قبل كل commit   |
+| `npm run db:reset`     | يعيد بناء القاعدة المحلية من الترحيلات + seed          |
+| `npm run db:new <اسم>` | ينشئ ملف ترحيل جديد                                    |
+| `npm run db:test`      | اختبارات pgTAP لقواعد الأعمال                          |
+| `npm run db:types`     | يولّد `src/types/database.ts` من القاعدة المحلية       |
+| `npm run db:push`      | يطبّق الترحيلات على المشروع السحابي (عادةً يتولاها CI) |
+
+---
+
+## ربط Supabase بـ Vercel
+
+### 1. إنشاء مشروع Supabase
+
+1. من [supabase.com](https://supabase.com) → **New Project** باسم `seco-seco`، واختر المنطقة الأقرب جغرافياً.
+2. **احفظ كلمة مرور قاعدة البيانات فوراً** — لا تُعرض مرة ثانية.
+3. من `Settings → General` انسخ **Project Reference ID**.
+
+### 2. ربط المشروعين (تكامل Vercel Marketplace — الطريقة الموصى بها)
+
+1. Vercel Dashboard → **Integrations** → ابحث عن **Supabase** → **Add Integration**.
+2. اختر مشروع Vercel ثم مشروع Supabase → **Connect**.
+3. Vercel يحقن المفاتيح تلقائياً في بيئات **Production و Preview و Development**:
+   `NEXT_PUBLIC_SUPABASE_URL` · `NEXT_PUBLIC_SUPABASE_ANON_KEY` · `SUPABASE_SERVICE_ROLE_KEY` · `POSTGRES_URL`
+
+بعد هذه الخطوة لا تنسخ مفتاحاً يدوياً أبداً — تدوير المفاتيح يتم من التكامل نفسه.
+
+<details>
+<summary>البديل اليدوي</summary>
+
+Vercel → Project → **Settings → Environment Variables**، وأضف الثلاثة الأولى من `Settings → Data API` في Supabase.
+
+⚠️ `SUPABASE_SERVICE_ROLE_KEY` يُضاف **بدون** بادئة `NEXT_PUBLIC_`. هذا المفتاح يتجاوز كل سياسات RLS، وإضافة البادئة له تسرّبه إلى كل متصفح يفتح الموقع.
+</details>
+
+### 3. ربط الريبو بـ Vercel
+
+Vercel → **Add New Project** → استورد `stuffs225-ui/Seco-Seco`. يُكتشف Next.js تلقائياً.
+كل push على فرع ينتج Preview Deployment، والدمج في `main` ينشر للإنتاج.
+
+### 4. ضبط عناوين المصادقة
+
+Supabase → `Authentication → URL Configuration`:
+
+- **Site URL**: نطاق الإنتاج.
+- **Redirect URLs**: أضف الثلاثة:
+  - `http://localhost:3000/**`
+  - `https://*-stuffs225-ui.vercel.app/**` ← لمعاينات الفروع
+  - `https://<نطاق-الإنتاج>/**`
+
+ثم `Authentication → Sign In / Providers → Email` واضبط **Allow new users to sign up = OFF**. المستخدمون يُنشأون بالدعوة فقط.
+
+### 5. أسرار GitHub لنشر الترحيلات
+
+GitHub → Settings → **Secrets and variables → Actions**:
+
+| السر                    | من أين                                |
+| ----------------------- | ------------------------------------- |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens |
+| `SUPABASE_DB_PASSWORD`  | كلمة مرور القاعدة من الخطوة 1         |
+| `SUPABASE_PROJECT_ID`   | Project Reference ID                  |
+
+عندها يطبّق `.github/workflows/db-migrate.yml` الترحيلات تلقائياً عند الدمج في `main`.
+
+---
+
+## قاعدة صارمة: القاعدة تُدار كشيفرة
+
+**لا يُعدَّل شيء في قاعدة البيانات من لوحة Supabase.** كل تغيير — جدول، عمود، سياسة RLS، دالة — يكون ملف ترحيل في `supabase/migrations/` مدفوعاً إلى Git.
+
+```bash
+npm run db:new add_something   # ينشئ الملف
+# اكتب الـ SQL
+npm run db:reset               # يتحقق أنه يعمل من الصفر
+```
+
+يتحقق CI من ذلك بإعادة بناء القاعدة من الترحيلات وحدها في كل PR. تعديل يدوي واحد يكسر قدرة النظام على إعادة البناء والتدقيق.
+
+---
+
+## هيكل المشروع
+
+```
+docs/master-plan.md      الخطة الرئيسية — مصدر الحقيقة للمتطلبات
+supabase/
+  migrations/            كل تغيير في القاعدة، مرقّم زمنياً
+  tests/                 pgTAP — اختبارات القبول من البنود 14 و23 و27
+  seed.sql               إعدادات افتراضية + بيانات تجريبية
+src/
+  app/                   صفحات Next.js (App Router)
+  components/ui/         مكونات shadcn/ui
+  components/domain/     مكونات النطاق (بطاقة صفقة، جدول ledger، حقل وزن...)
+  lib/supabase/          عملاء Supabase: server / client / proxy
+  lib/auth/dal.ts        طبقة الوصول — requireUser() في كل صفحة وaction
+  lib/actions/           Server Actions — تنادي RPC ولا تحسب
+  lib/format.ts          تنسيق موحّد للمال والوزن والتواريخ
+  types/database.ts      أنواع مولَّدة — لا تحرره يدوياً
+```
+
+## الاصطلاحات
+
+- **RTL:** استخدم الخصائص المنطقية في Tailwind حصراً (`ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`). استخدام `ml/mr/left/right` يكسر التخطيط العربي.
+- **الأرقام:** كل مبلغ ووزن ورقم صفقة داخل `<span className="num">` ليبقى LTR داخل النص العربي.
+- **الدقة:** المبالغ `numeric(18,4)` والأوزان `numeric(14,3)` وسعر الجرام `numeric(18,6)`. لا `float` في أي مكان.
+- **الألوان:** استخدم رموز النظام (`text-positive`, `bg-surface`, `border-border`) لا ألواناً مباشرة.

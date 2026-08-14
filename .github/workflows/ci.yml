@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: فحص التطبيق
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: التحقق من الأنواع
+        run: npm run typecheck
+
+      - name: التدقيق اللغوي
+        run: npm run lint
+
+      - name: تنسيق الملفات
+        run: npm run format:check
+
+      - name: اختبارات الوحدة
+        run: npm run test
+
+  database:
+    name: اختبارات قاعدة البيانات
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: تشغيل Supabase محلياً
+        run: supabase start
+
+      # يعيد بناء القاعدة من الترحيلات وحدها — يثبت أن كل تغيير موجود كملف ترحيل
+      # وأن الترحيلات تعمل من الصفر، لا من حالة قائمة.
+      - name: إعادة بناء القاعدة من الترحيلات
+        run: supabase db reset
+
+      # اختبارات القبول في البنود 14 و23 و27 من الخطة الرئيسية
+      - name: اختبارات قواعد الأعمال (pgTAP)
+        run: supabase test db
+
+      # الترحيلات يجب أن تصف حالة القاعدة بالكامل — أي فرق يعني تعديلاً غير مسجّل
+      - name: التأكد من عدم وجود فروقات غير مرحّلة
+        run: supabase db diff --schema public --linked=false
