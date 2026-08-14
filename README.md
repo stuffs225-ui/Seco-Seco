@@ -158,7 +158,8 @@ docs/master-plan.md      الخطة الرئيسية — مصدر الحقيقة
 supabase/
   migrations/            كل تغيير في القاعدة، مرقّم زمنياً
   tests/                 pgTAP — اختبارات القبول من البنود 14 و23 و27
-  seed.sql               إعدادات افتراضية + بيانات تجريبية
+  seed.sql               بذر حساب المالك — يُطبَّق مع db reset
+  seeds/demo.sql         بيانات تجريبية اختيارية — npm run db:demo
 src/
   app/                   صفحات Next.js (App Router)
   components/ui/         مكونات shadcn/ui
