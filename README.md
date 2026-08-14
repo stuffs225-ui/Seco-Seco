@@ -46,6 +46,29 @@ npm run dev               # http://localhost:3000
 | `npm run db:types`     | يولّد `src/types/database.ts` من القاعدة المحلية       |
 | `npm run db:push`      | يطبّق الترحيلات على المشروع السحابي (عادةً يتولاها CI) |
 
+### حساب الدخول المحلي
+
+بعد `npm run db:reset` يُنشأ مالك للتطوير:
+`owner@seco.local` / `SecoSeco2026!`
+
+### بيئة بلا Docker
+
+إن تعذّر تشغيل Docker، يوجد مسار احتياطي يبني نفس الترحيلات ونفس الاختبارات
+على PostgreSQL 16 محلي مع محاكاة لطبقة `auth` من Supabase:
+
+```bash
+sudo apt-get install -y postgresql-16 postgresql-16-pgtap
+sudo pg_ctlcluster 16 main start
+
+npm run db:local          # يبني القاعدة من الترحيلات + seed
+npm run db:local:test     # يشغّل نفس اختبارات pgTAP
+```
+
+ملفات الاختبار واحدة في المسارين — لا توجد نسخة ثانية يمكن أن تفترق نتيجتها.
+لكن هذا المسار **لا يشغّل خدمة المصادقة**، فتسجيل الدخول والتحقق من RLS
+عبر التطبيق يحتاجان `supabase start` أو مشروعاً سحابياً.
+المسار المعتمد يبقى `npm run db:start`.
+
 ---
 
 ## ربط Supabase بـ Vercel

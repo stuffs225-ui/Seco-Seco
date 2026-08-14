@@ -6,14 +6,19 @@ import { usePathname } from "next/navigation";
 import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
 
-/** أقسام النظام — تُبنى تباعاً حسب مراحل الخطة. */
+/**
+ * أقسام النظام.
+ *
+ * `ready: false` يعني أن القسم لم يُبنَ بعد فيظهر معطّلاً بدل أن يقود
+ * إلى صفحة 404 — الحالة الصادقة أوضح للمستخدم من رابط مكسور.
+ */
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "لوحة التحكم" },
-  { href: "/inventory", label: "المخزون" },
-  { href: "/distributors", label: "الموزعون" },
-  { href: "/deals", label: "الصفقات" },
-  { href: "/payments", label: "التحصيل" },
-  { href: "/settings", label: "الإعدادات" },
+  { href: "/dashboard", label: "لوحة التحكم", ready: true },
+  { href: "/inventory", label: "المخزون", ready: false },
+  { href: "/distributors", label: "الموزعون", ready: false },
+  { href: "/deals", label: "الصفقات", ready: false },
+  { href: "/payments", label: "التحصيل", ready: false },
+  { href: "/settings", label: "الإعدادات", ready: true },
 ] as const;
 
 export function AppNav({ email }: { email: string }) {
@@ -28,8 +33,22 @@ export function AppNav({ email }: { email: string }) {
 
         <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => {
+            if (!item.ready) {
+              return (
+                <span
+                  key={item.href}
+                  aria-disabled="true"
+                  title="قيد الإنشاء"
+                  className="text-muted/50 cursor-not-allowed rounded-lg px-3 py-1.5 text-sm whitespace-nowrap"
+                >
+                  {item.label}
+                </span>
+              );
+            }
+
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
+
             return (
               <Link
                 key={item.href}

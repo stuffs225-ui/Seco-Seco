@@ -19,7 +19,9 @@
     "db:push": "supabase db push",
     "db:test": "supabase test db",
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run test",
+    "db:local": "scripts/local-db/setup.sh",
+    "db:local:test": "scripts/local-db/test.sh"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.8.0",

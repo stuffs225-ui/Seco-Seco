@@ -1,13 +1,12 @@
 /**
- * أنواع قاعدة البيانات — مولَّدة آلياً.
+ * أنواع قاعدة البيانات.
  *
- * لإعادة التوليد بعد أي ترحيل جديد:
- *   npm run db:start   (مرة واحدة)
- *   npm run db:reset
- *   npm run db:types
+ * الهدف أن يُولَّد هذا الملف آلياً من المخطط:
+ *   npm run db:start && npm run db:reset && npm run db:types
  *
- * لا تحرر هذا الملف يدوياً — أي تعديل يُفقد عند التوليد التالي.
- * الملف الحالي هيكل مبدئي حتى تُنشأ الترحيلات في المرحلة M1.
+ * حتى ذلك الحين يبقى `Database` نوعاً متساهلاً، والاستعلامات تُوصَّف
+ * بأنواع صريحة في `src/types/schema.ts`. لا تعتمد على هذا الملف كمرجع
+ * للمخطط — المرجع هو ملفات الترحيل في `supabase/migrations/`.
  */
 export type Json =
   | string
@@ -17,12 +16,5 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type Database = {
-  public: {
-    Tables: Record<string, never>;
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    Enums: Record<string, never>;
-    CompositeTypes: Record<string, never>;
-  };
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Database = any;
