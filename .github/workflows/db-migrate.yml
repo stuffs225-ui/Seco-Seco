@@ -1,10 +1,15 @@
 name: نشر ترحيلات قاعدة البيانات
 
-# يطبّق الترحيلات على مشروع Supabase الإنتاجي عند الدمج في main.
+# يطبّق الترحيلات على مشروع Supabase الإنتاجي.
 # لا يُعدَّل شيء في القاعدة يدوياً من لوحة Supabase — هذا هو المسار الوحيد.
+#
+# فرع الإنتاج اليوم هو فرع العمل نفسه لأنه الفرع الوحيد في الريبو.
+# عند إنشاء main واعتماده فرعاً افتراضياً، احذف الفرع الآخر من القائمة.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - claude/sicco-system-design-plan-4oh23f
     paths:
       - "supabase/migrations/**"
       - ".github/workflows/db-migrate.yml"
@@ -19,7 +24,6 @@ jobs:
   migrate:
     name: تطبيق الترحيلات
     runs-on: ubuntu-latest
-    environment: production
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -32,8 +36,38 @@ jobs:
         with:
           version: latest
 
+      # فحص مبكر برسالة مفهومة: بدون هذا يفشل الأمر التالي برسالة
+      # غامضة عن مشروع غير مرتبط، والسبب الحقيقي سرٌّ ناقص.
+      # ملاحظة على الصياغة: GitHub يشغّل كل خطوة بـ `bash -e`، فصيغة
+      # `[ -z "$X" ] && ...` تُفشل الخطوة حين يكون المتغير موجوداً —
+      # لأن الشرط يعود 1 فيصبح آخر أمر فاشلاً. لذلك if صريحة.
+      - name: التأكد من وجود الأسرار
+        run: |
+          missing=""
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            missing="$missing SUPABASE_ACCESS_TOKEN"
+          fi
+          if [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            missing="$missing SUPABASE_DB_PASSWORD"
+          fi
+          if [ -z "$SUPABASE_PROJECT_ID" ]; then
+            missing="$missing SUPABASE_PROJECT_ID"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::أسرار ناقصة:$missing"
+            echo "أضفها في GitHub → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "الأسرار الثلاثة موجودة."
+
       - name: الربط بالمشروع
-        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        run: |
+          supabase link \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --password "$SUPABASE_DB_PASSWORD"
 
       - name: تطبيق الترحيلات
-        run: supabase db push
+        run: supabase db push --password "$SUPABASE_DB_PASSWORD"
+
+      - name: عرض الترحيلات المطبَّقة
+        run: supabase migration list --password "$SUPABASE_DB_PASSWORD"
