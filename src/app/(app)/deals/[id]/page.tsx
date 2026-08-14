@@ -19,6 +19,7 @@ import {
   type DealStatusRow,
 } from "@/types/deals";
 
+import { CreditResolution } from "./credit-resolution";
 import { QuantityActions } from "./quantity-actions";
 
 export const metadata: Metadata = { title: "ملف الصفقة" };
@@ -72,6 +73,32 @@ export default async function DealWorkspacePage({
       .eq("id", deal.distributor_id)
       .maybeSingle<{ name: string; code: string }>(),
   ]);
+
+  // الرصيد الدائن حالة مشتقة من الصفقة، لا جدول (§24.5)
+  const hasCredit = Number(deal.remaining_balance) < 0;
+
+  const [{ data: credit }, { data: siblingDeals }, { data: accounts }] =
+    hasCredit
+      ? await Promise.all([
+          supabase
+            .from("v_distributor_credits")
+            .select("unresolved_amount")
+            .eq("deal_id", id)
+            .maybeSingle<{ unresolved_amount: string }>(),
+          supabase
+            .from("v_deal_status")
+            .select("deal_id, deal_no")
+            .eq("distributor_id", deal.distributor_id)
+            .neq("deal_id", id)
+            .not("deal_status", "in", '("closed","cancelled")')
+            .returns<{ deal_id: string; deal_no: string }[]>(),
+          supabase
+            .from("cash_accounts")
+            .select("id, name")
+            .eq("is_active", true)
+            .returns<{ id: string; name: string }[]>(),
+        ])
+      : [{ data: null }, { data: [] }, { data: [] }];
 
   const canSell =
     Number(deal.open_weight_g) > 0 &&
@@ -240,6 +267,16 @@ export default async function DealWorkspacePage({
           </p>
         </Card>
       </section>
+
+      {/* ── معالجة الرصيد الدائن (§24.5) ──────────────────────────── */}
+      {hasCredit && credit && Number(credit.unresolved_amount) > 0 ? (
+        <CreditResolution
+          dealId={deal.deal_id}
+          unresolvedAmount={credit.unresolved_amount}
+          siblingDeals={siblingDeals ?? []}
+          accounts={accounts ?? []}
+        />
+      ) : null}
 
       {/* ── حركات الكمية: التصريف والاسترداد (§18.3) ──────────────── */}
       {canSell && line ? (
