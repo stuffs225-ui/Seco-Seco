@@ -21,7 +21,9 @@
     "db:types": "supabase gen types typescript --local > src/types/database.ts",
     "verify": "npm run typecheck && npm run lint && npm run test",
     "db:local": "scripts/local-db/setup.sh",
-    "db:local:test": "scripts/local-db/test.sh"
+    "db:local:test": "scripts/local-db/test.sh",
+    "db:demo": "supabase db execute --file supabase/seeds/demo.sql",
+    "db:local:demo": "sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d seco_seco_dev -f supabase/seeds/demo.sql"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.8.0",

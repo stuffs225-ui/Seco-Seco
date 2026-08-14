@@ -64,6 +64,14 @@ jobs:
       - name: اختبارات قواعد الأعمال (pgTAP)
         run: supabase test db
 
-      # الترحيلات يجب أن تصف حالة القاعدة بالكامل — أي فرق يعني تعديلاً غير مسجّل
+      # الترحيلات يجب أن تصف حالة القاعدة بالكامل.
+      # db diff يطبع الفرق ويخرج بصفر حتى حين يوجد فرق، فنفحص المخرج بأنفسنا.
       - name: التأكد من عدم وجود فروقات غير مرحّلة
-        run: supabase db diff --schema public --linked=false
+        run: |
+          diff_output="$(supabase db diff --schema public)"
+          if [ -n "$diff_output" ]; then
+            echo "::error::يوجد فرق بين الترحيلات وحالة القاعدة:"
+            echo "$diff_output"
+            exit 1
+          fi
+          echo "لا فروقات — الترحيلات تصف القاعدة بالكامل."

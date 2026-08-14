@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
@@ -9,6 +10,13 @@ import { openDeal, type ActionState } from "@/lib/actions/deals";
 import { formatMoney, formatPerGram, formatWeight } from "@/lib/format";
 
 type Distributor = { id: string; code: string; name: string };
+type OpenDeal = {
+  deal_id: string;
+  deal_no: string;
+  distributor_id: string;
+  open_weight_g: string;
+  remaining_balance: string;
+};
 type Lot = {
   lot_id: string;
   lot_no: string;
@@ -47,13 +55,16 @@ function parseNumber(raw: string): number {
 export function OpenDealForm({
   distributors,
   lots,
+  openDeals,
 }: {
   distributors: Distributor[];
   lots: Lot[];
+  openDeals: OpenDeal[];
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(openDeal, initialState);
 
+  const [distributorId, setDistributorId] = useState("");
   const [lotId, setLotId] = useState("");
   const [weight, setWeight] = useState("");
   const [value, setValue] = useState("");
@@ -63,6 +74,9 @@ export function OpenDealForm({
   }, [state.success, router]);
 
   const selectedLot = lots.find((lot) => lot.lot_id === lotId);
+  const distributorOpenDeals = openDeals.filter(
+    (deal) => deal.distributor_id === distributorId,
+  );
 
   /*
     معاينة اقتصاديات الصفقة قبل التسليم (§5.4).
@@ -106,6 +120,8 @@ export function OpenDealForm({
               id="distributor_id"
               name="distributor_id"
               required
+              value={distributorId}
+              onChange={(e) => setDistributorId(e.target.value)}
               className={fieldClass}
             >
               <option value="">اختر الموزع</option>
@@ -221,6 +237,42 @@ export function OpenDealForm({
           <textarea id="notes" name="notes" rows={2} className={fieldClass} />
         </div>
       </Card>
+
+      {/*
+        §24.1 يطلب أن يسأل النظام: إضافة للصفقة الحالية أم صفقة جديدة؟
+
+        مع قرار الدفعة الواحدة لكل صفقة صار الجواب محسوماً — الإضافة
+        مستحيلة بنيوياً. فبدل سؤال بلا خيارين، نعرض الصفقات المفتوحة
+        للموزع ليقرر عن علم: يتابع تحصيل القائم أو يفتح صفقة جديدة.
+      */}
+      {distributorOpenDeals.length > 0 ? (
+        <Card className="border-warning/40 bg-warning/5 p-5">
+          <h2 className="text-warning font-semibold">
+            لهذا الموزع صفقات مفتوحة
+          </h2>
+          <p className="text-muted mt-1 text-sm">
+            هذا التسليم سينشئ صفقة مستقلة جديدة — لا يُضاف إلى صفقة قائمة، لأن
+            كل صفقة مرتبطة بدفعة واحدة باقتصادياتها الخاصة.
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {distributorOpenDeals.map((deal) => (
+              <li key={deal.deal_id} className="num text-sm">
+                <Link
+                  href={`/deals/${deal.deal_id}`}
+                  className="text-accent hover:underline"
+                >
+                  {deal.deal_no}
+                </Link>
+                <span className="text-muted">
+                  {" "}
+                  · مفتوح {formatWeight(deal.open_weight_g)} · متبقٍ{" "}
+                  {formatMoney(deal.remaining_balance)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       {preview ? (
         <Card className="border-primary/30 bg-primary/5 p-5">
