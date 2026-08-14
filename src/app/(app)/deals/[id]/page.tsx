@@ -20,6 +20,7 @@ import {
 } from "@/types/deals";
 
 import { CreditResolution } from "./credit-resolution";
+import { SettlementPanel, type Reconciliation } from "./settlement-panel";
 import { QuantityActions } from "./quantity-actions";
 
 export const metadata: Metadata = { title: "ملف الصفقة" };
@@ -45,6 +46,7 @@ export default async function DealWorkspacePage({
     { data: ledger },
     { data: line },
     { data: distributor },
+    { data: recon },
   ] = await Promise.all([
     supabase
       .from("v_deal_profit")
@@ -72,6 +74,11 @@ export default async function DealWorkspacePage({
       .select("name, code")
       .eq("id", deal.distributor_id)
       .maybeSingle<{ name: string; code: string }>(),
+    supabase
+      .from("v_deal_reconciliation")
+      .select("*")
+      .eq("deal_id", id)
+      .single<Reconciliation>(),
   ]);
 
   // الرصيد الدائن حالة مشتقة من الصفقة، لا جدول (§24.5)
@@ -287,6 +294,17 @@ export default async function DealWorkspacePage({
             openWeight={deal.open_weight_g}
             costPerGram={line.cost_per_g}
             expectedProfitPerGram={line.expected_profit_per_g}
+          />
+        </section>
+      ) : null}
+
+      {/* ── المصالحة والإغلاق (§24.6) ─────────────────────────────── */}
+      {recon ? (
+        <section className="space-y-3">
+          <SettlementPanel
+            dealId={deal.deal_id}
+            recon={recon}
+            isClosed={deal.deal_status === "closed"}
           />
         </section>
       ) : null}
