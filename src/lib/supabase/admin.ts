@@ -11,12 +11,12 @@ import type { Database } from "@/types/database";
  * `server-only` في أعلى الملف يجعل استيراده من مكوّن عميل خطأ بناء، لا
  * ثغرة تُكتشف بعد النشر.
  *
- * الاستخدام الوحيد المشروع اليوم: معرفة بريد حساب الدخول قبل وجود جلسة،
- * حتى تكفي شاشة الدخول برمز واحد دون أن يكتب المستخدم بريداً. لا يُستخدم
- * لأي قراءة أو كتابة على بيانات النشاط — تلك تمر عبر RPC بجلسة المستخدم.
+ * الاستخدام الوحيد المشروع اليوم: إنشاء جلسة المالك تلقائياً عند أول طلب،
+ * لأن النظام يفتح بلا شاشة دخول. لا يُستخدم لأي قراءة أو كتابة على بيانات
+ * النشاط — تلك تمر عبر RPC بجلسة المستخدم فتخضع لـ RLS وسجل التدقيق.
  *
  * الفحص كسول عمداً: بيئات المعاينة قد لا تحمل المفتاح، ولا يصح أن يفشل
- * البناء كله بسببه — يكفي أن يفشل مسار الدخول بالرمز برسالة واضحة.
+ * البناء كله بسببه — يكفي أن تفشل التهيئة برسالة واضحة في `/setup`.
  */
 function requireServiceRoleKey(): string {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? "";
@@ -24,10 +24,9 @@ function requireServiceRoleKey(): string {
   if (key === "") {
     throw new Error(
       "متغير البيئة SUPABASE_SERVICE_ROLE_KEY غير معرَّف.\n\n" +
-        "الدخول بالرمز يحتاجه لمعرفة حساب المالك. أضفه في Vercel → " +
+        "النظام يحتاجه لإنشاء جلسة المالك تلقائياً. أضفه في Vercel → " +
         "Settings → Environment Variables بدون أي بادئة — إضافة " +
-        "NEXT_PUBLIC_ له تسرّبه لكل متصفح يفتح الموقع.\n\n" +
-        "حتى تضيفه، يمكن الدخول من /login/email بالبريد وكلمة المرور.",
+        "NEXT_PUBLIC_ له تسرّبه لكل متصفح يفتح الموقع.",
     );
   }
 
@@ -41,10 +40,9 @@ export function createAdminClient() {
 }
 
 /**
- * بريد الحساب الذي يفتحه رمز الدخول: أول مالك نشط.
+ * بريد الحساب الذي يعمل النظام تحت هويته: أول مالك نشط.
  *
- * يُقرأ على الخادم فقط ولا يصل المتصفح إطلاقاً. لو عُرِّض كنقطة عامة
- * لأصبح اسم الحساب معلوماً لأي أحد، وهو نصف ما يحتاجه المهاجم.
+ * يُقرأ على الخادم فقط ولا يصل المتصفح إطلاقاً.
  */
 export type AccessAccountResult =
   | { kind: "ok"; email: string }
@@ -52,7 +50,7 @@ export type AccessAccountResult =
   | { kind: "schema_missing" }
   /** المخطط موجود لكن لا يوجد مالك نشط. */
   | { kind: "no_owner" }
-  /** المالك موجود لكن حسابه في auth بلا بريد — لا يمكن الدخول به. */
+  /** المالك موجود لكن حسابه في auth بلا بريد — لا يمكن توليد جلسة له. */
   | { kind: "owner_without_email" }
   | { kind: "error"; message: string };
 
@@ -93,30 +91,6 @@ export async function getAccessAccountEmail(): Promise<AccessAccountResult> {
 
   const email = data.user?.email;
   return email ? { kind: "ok", email } : { kind: "owner_without_email" };
-}
-
-/**
- * هل النظام مفتوح بلا شاشة دخول؟
- *
- * يُقرأ بمفتاح الإدارة لأن السؤال يقع قبل وجود جلسة، وسياسة app_settings
- * تشترط مستخدماً مسجَّلاً. الافتراضي عند أي تعذّر هو **مغلق**: لو رجّعنا
- * «مفتوح» عند فشل القراءة لصار عطلٌ عابر في القاعدة سبباً في كشف النظام.
- */
-export async function isOpenAccessEnabled(): Promise<boolean> {
-  try {
-    const admin = createAdminClient();
-
-    const { data, error } = await admin
-      .from("app_settings")
-      .select("value")
-      .eq("key", "open_access")
-      .maybeSingle<{ value: unknown }>();
-
-    if (error || !data) return false;
-    return data.value === true;
-  } catch {
-    return false;
-  }
 }
 
 /**

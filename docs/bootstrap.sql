@@ -24,13 +24,11 @@ create schema seco_bootstrap;
 
 create table seco_bootstrap.config (
   owner_email text not null,
-  owner_code  text not null,
   owner_name  text not null
 );
 
-insert into seco_bootstrap.config (owner_email, owner_code, owner_name) values (
-  'owner@example.com',   -- ✏️ بريدك الذي ستنشئ به الحساب
-  'Aa123123',            -- ✏️ رمز الدخول (8 خانات على الأقل)
+insert into seco_bootstrap.config (owner_email, owner_name) values (
+  'owner@example.com',   -- ✏️ بريد حساب المالك (لا تسجّل به دخولاً — النظام يفتح مباشرةً)
   'المالك'               -- ✏️ اسمك كما يظهر في النظام
 );
 
@@ -54,10 +52,6 @@ begin
 
   if position('@' in v_cfg.owner_email) = 0 then
     raise exception 'البريد % ليس بصيغة صحيحة.', v_cfg.owner_email;
-  end if;
-
-  if length(v_cfg.owner_code) < 8 then
-    raise exception 'رمز الدخول يجب أن يكون 8 خانات على الأقل.';
   end if;
 end
 $seco_check$;
@@ -4097,77 +4091,8 @@ insert into public.app_settings (key, value, description) values
    'عدد الأيام قبل اعتبار الصفقة مفتوحة أكثر من اللازم')
 on conflict (key) do nothing;
 
-
--- ─── 20260814091700_access_code.sql ──────────────────────────
-
 -- ═══════════════════════════════════════════════════════════════════════
--- 0018 — تدقيق تغيير رمز الدخول
---
--- رمز الدخول هو كلمة مرور حساب المالك في Supabase Auth، وتغييره يتم عبر
--- `auth.updateUser` التي لا تمر بقاعدتنا فلا تكتب في سجل التدقيق.
---
--- §11 يشترط أن تظهر كل حركة حساسة في السجل. تغيير مفتاح الدخول للنظام
--- المالي كله حركة حساسة، فنسجّلها صراحةً.
--- ═══════════════════════════════════════════════════════════════════════
-
-create or replace function public.log_access_code_changed()
-returns void
-language plpgsql
-security definer
-set search_path = public, pg_catalog
-as $$
-begin
-  if auth.uid() is null then
-    raise exception 'يجب تسجيل الدخول.' using errcode = 'insufficient_privilege';
-  end if;
-
-  /*
-    لا يُسجَّل الرمز نفسه ولا أي جزء منه — لا القديم ولا الجديد.
-    السجل يثبت أن التغيير حدث ومن نفّذه ومتى، وهذا ما يحتاجه التدقيق.
-  */
-  perform public.write_audit(
-    'access_code.changed',
-    'auth',
-    auth.uid()::text,
-    '{}'::jsonb
-  );
-end;
-$$;
-
-comment on function public.log_access_code_changed is
-  'يقيّد تغيير رمز الدخول في سجل التدقيق دون تسجيل الرمز نفسه (§11).';
-
-revoke all on function public.log_access_code_changed() from public, anon;
-grant execute on function public.log_access_code_changed() to authenticated;
-
-
--- ─── 20260814091800_open_access.sql ──────────────────────────
-
--- ═══════════════════════════════════════════════════════════════════════
--- 0019 — الوصول المفتوح بلا شاشة دخول
---
--- ⚠️ قرار أمني، لا تفضيل واجهة.
---
--- حين يكون open_access مفعّلاً يفتح الموقع مباشرةً: تُنشأ جلسة المالك
--- تلقائياً خلف الكواليس. أي شخص يعرف الرابط يصبح مالكاً — يقرأ التكلفة
--- والربح وأرصدة الموزعين، ويكتب ويحذف.
---
--- المصادقة نفسها لم تُزَل ولا يصح إزالتها: كل سياسات RLS وفحوص
--- الصلاحيات وسجل التدقيق مبنية على auth.uid()، فبدون جلسة لا يعمل شيء
--- في النظام إطلاقاً. ما يتغير هو ظهور شاشة الدخول فقط.
---
--- للعودة إلى الدخول بالرمز:
---   update public.app_settings set value = 'false'::jsonb
---   where key = 'open_access';
--- ═══════════════════════════════════════════════════════════════════════
-
-insert into public.app_settings (key, value, description) values
-  ('open_access', 'true'::jsonb,
-   'فتح النظام بلا شاشة دخول — أي شخص يعرف الرابط يدخل بصلاحية المالك')
-on conflict (key) do nothing;
-
--- ═══════════════════════════════════════════════════════════════════════
--- 2) حساب المالك ورمز الدخول
+-- 2) حساب المالك — النظام يعمل تحت هويته تلقائياً
 -- ═══════════════════════════════════════════════════════════════════════
 
 do $seco_owner$
@@ -4193,7 +4118,7 @@ begin
       'authenticated',
       'authenticated',
       v_cfg.owner_email,
-      crypt(v_cfg.owner_code, gen_salt('bf')),
+      crypt(gen_random_uuid()::text, gen_salt('bf')),
       now(),
       '{"provider": "email", "providers": ["email"]}'::jsonb,
       jsonb_build_object('full_name', v_cfg.owner_name),
@@ -4201,7 +4126,7 @@ begin
       now()
     );
 
-    -- gotrue يتطلب سجل هوية مطابقاً وإلا رفض تسجيل الدخول بالبريد
+    -- gotrue يتطلب سجل هوية مطابقاً وإلا رفض توليد الرابط السحري للبريد
     insert into auth.identities (
       provider_id, user_id, identity_data, provider, created_at, updated_at
     )
@@ -4219,10 +4144,10 @@ begin
       now()
     );
   else
-    -- الحساب موجود مسبقاً في auth: نحدّث رمزه بدل أن نفشل
+    -- الحساب موجود مسبقاً في auth: نكتفي بتأكيد البريد
+    -- (الرابط السحري لا يُولَّد لبريد غير مؤكَّد)
     update auth.users
-    set encrypted_password = crypt(v_cfg.owner_code, gen_salt('bf')),
-        email_confirmed_at = coalesce(email_confirmed_at, now()),
+    set email_confirmed_at = coalesce(email_confirmed_at, now()),
         updated_at = now()
     where id = v_id;
   end if;
@@ -4237,11 +4162,13 @@ begin
 end
 $seco_owner$;
 
--- تنظيف إعدادات التهيئة — لا داعي لبقاء الرمز في القاعدة
+-- تنظيف إعدادات التهيئة — لا داعي لبقائها في القاعدة
 drop schema seco_bootstrap cascade;
 
 commit;
 
 -- ═══════════════════════════════════════════════════════════════════════
--- تم. افتح الموقع وادخل بالرمز الذي حددته أعلاه.
+-- تم. افتح رابط الموقع — يفتح النظام مباشرةً بلا تسجيل دخول.
+--
+-- ⚠️ الرابط عام: من يفتحه يرى التكلفة والأرباح وأرصدة الموزعين ويعدّلها.
 -- ═══════════════════════════════════════════════════════════════════════

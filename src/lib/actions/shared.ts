@@ -29,14 +29,3 @@ export const optionalDate = z
   .trim()
   .transform((v) => (v === "" ? null : v))
   .nullable();
-
-/**
- * الحد الأدنى لطول رمز الدخول.
- *
- * يعيش هنا لا في ملف الإجراء: ملفات "use server" لا تصدّر إلا دوالّ
- * غير متزامنة، وتصدير ثابت منها خطأ بناء في Next.js.
- *
- * يجب أن يطابق `minimum_password_length` في إعدادات Supabase Auth،
- * وإلا قبلته الواجهة ورفضته Supabase.
- */
-export const MIN_CODE_LENGTH = 8;

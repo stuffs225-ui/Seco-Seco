@@ -3,55 +3,35 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { logout } from "@/app/login/actions";
 import { cn } from "@/lib/utils";
 
 /**
  * أقسام النظام.
  *
- * `ready: false` يعني أن القسم لم يُبنَ بعد فيظهر معطّلاً بدل أن يقود
- * إلى صفحة 404 — الحالة الصادقة أوضح للمستخدم من رابط مكسور.
+ * لا زر خروج: النظام مفتوح بلا دخول، والجلسة تُنشأ تلقائياً في الـ proxy.
+ * زر خروج هنا يعيد الدخول فوراً فيبدو معطّلاً — وزر لا يعمل أسوأ من غيابه.
  */
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "لوحة التحكم", ready: true },
-  { href: "/inventory", label: "المخزون", ready: true },
-  { href: "/distributors", label: "الموزعون", ready: true },
-  { href: "/deals", label: "الصفقات", ready: true },
-  { href: "/payments", label: "التحصيل", ready: true },
-  { href: "/settings", label: "الإعدادات", ready: true },
+  { href: "/dashboard", label: "لوحة التحكم" },
+  { href: "/inventory", label: "المخزون" },
+  { href: "/distributors", label: "الموزعون" },
+  { href: "/deals", label: "الصفقات" },
+  { href: "/payments", label: "التحصيل" },
+  { href: "/settings", label: "الإعدادات" },
 ] as const;
 
-export function AppNav({
-  email,
-  openAccess,
-}: {
-  email: string;
-  openAccess: boolean;
-}) {
+export function AppNav() {
   const pathname = usePathname();
 
   return (
     <header className="border-border bg-surface no-print sticky top-0 z-40 border-b">
-      <div className="mx-auto flex w-full max-w-7xl items-center gap-6 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
         <Link href="/dashboard" className="text-lg font-bold whitespace-nowrap">
           سيكو سيكو
         </Link>
 
         <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => {
-            if (!item.ready) {
-              return (
-                <span
-                  key={item.href}
-                  aria-disabled="true"
-                  title="قيد الإنشاء"
-                  className="text-muted/50 cursor-not-allowed rounded-lg px-3 py-1.5 text-sm whitespace-nowrap"
-                >
-                  {item.label}
-                </span>
-              );
-            }
-
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
 
@@ -72,36 +52,6 @@ export function AppNav({
             );
           })}
         </nav>
-
-        <div className="flex items-center gap-3">
-          {/*
-            مع الوصول المفتوح لا معنى لزر الخروج: الـ proxy ينشئ جلسة
-            جديدة فوراً، فالضغط عليه يبدو معطلاً. نعرض بدله تنبيهاً بأن
-            النظام مفتوح — وهي حقيقة يجب أن تبقى مرئية لا مخفية.
-          */}
-          {openAccess ? (
-            <span
-              title="أي شخص يعرف الرابط يدخل بصلاحية المالك"
-              className="bg-warning/10 text-warning rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap"
-            >
-              نظام مفتوح
-            </span>
-          ) : (
-            <>
-              <span className="text-muted hidden text-xs sm:inline" dir="ltr">
-                {email}
-              </span>
-              <form action={logout}>
-                <button
-                  type="submit"
-                  className="text-muted hover:text-foreground text-sm"
-                >
-                  خروج
-                </button>
-              </form>
-            </>
-          )}
-        </div>
       </div>
     </header>
   );
