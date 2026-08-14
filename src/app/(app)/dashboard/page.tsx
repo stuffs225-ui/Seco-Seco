@@ -1,3 +1,11 @@
+import {
+  CircleDollarSign,
+  HandCoins,
+  PackageCheck,
+  TrendingUp,
+  Wallet,
+  Warehouse,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -119,6 +127,7 @@ export default async function DashboardPage() {
             label="النقد المتاح"
             value={<Money value={position?.cash_available} withCurrency />}
             hint="في الصندوق والبنك"
+            icon={<Wallet />}
           />
           <StatCard
             label="ذمم الموزعين"
@@ -126,6 +135,7 @@ export default async function DashboardPage() {
               <Money value={position?.distributor_receivables} withCurrency />
             }
             hint="مستحق على الصفقات المفتوحة"
+            icon={<HandCoins />}
           />
           <StatCard
             label="المخزون في المخزن"
@@ -133,6 +143,7 @@ export default async function DashboardPage() {
               <Money value={position?.inventory_at_warehouse} withCurrency />
             }
             hint="بالتكلفة"
+            icon={<Warehouse />}
           />
           <StatCard
             label="المخزون لدى الموزعين"
@@ -140,6 +151,7 @@ export default async function DashboardPage() {
               <Money value={position?.inventory_at_distributors} withCurrency />
             }
             hint="بالتكلفة — خارج المخزن"
+            icon={<PackageCheck />}
           />
         </div>
 
@@ -165,6 +177,7 @@ export default async function DashboardPage() {
             label="أرصدة دائنة للموزعين"
             value={<Money value={position?.distributor_credits} withCurrency />}
             hint="مال الموزعين لدى الشركة — يحتاج معالجة"
+            icon={<CircleDollarSign />}
           />
           <StatCard
             label="مستحقات الشركاء"
@@ -194,6 +207,7 @@ export default async function DashboardPage() {
               />
             }
             hint="مؤشر تحليلي — لا يدخل السيولة ولا التوزيع"
+            icon={<TrendingUp />}
           />
           <StatCard
             label="ربح محقق"
@@ -205,11 +219,13 @@ export default async function DashboardPage() {
               />
             }
             hint="من كميات صُرِّفت فعلاً"
+            icon={<TrendingUp />}
           />
           <StatCard
             label="نقد محصَّل"
             value={<Money value={position?.cash_available} withCurrency />}
             hint="ما دخل الصندوق فعلاً"
+            icon={<Wallet />}
           />
         </div>
       </section>

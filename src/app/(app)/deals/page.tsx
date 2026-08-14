@@ -1,3 +1,4 @@
+import { Handshake } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -57,6 +58,7 @@ export default async function DealsPage() {
           title="لا توجد صفقات بعد"
           description="كل تسليم كمية لموزع ينشئ صفقة مستقلة تجمع الوزن والقيمة والدفعات والاستردادات في مكان واحد."
           action={{ href: "/deals/new", label: "تسليم كمية" }}
+          icon={<Handshake />}
         />
       ) : (
         <TableWrap>

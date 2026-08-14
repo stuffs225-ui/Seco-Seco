@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
@@ -23,8 +24,9 @@ export function PageHeader({
       {action ? (
         <Link
           href={action.href}
-          className="bg-primary text-primary-foreground no-print rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90"
+          className="bg-primary text-primary-foreground no-print inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-[opacity,box-shadow] hover:opacity-90 hover:shadow-md"
         >
+          <Plus className="size-4" aria-hidden="true" />
           {action.label}
         </Link>
       ) : null}
@@ -32,18 +34,27 @@ export function PageHeader({
   );
 }
 
-/** بطاقة محتوى — الحاوية القياسية للجداول والنماذج والملخصات. */
+/**
+ * بطاقة محتوى — الحاوية القياسية للجداول والنماذج والملخصات.
+ *
+ * `interactive` تضيف ظلاً أوضح عند المرور فوقها — لبطاقات تمثّل عنصراً
+ * قابلاً للنقر لا محتوى ثابتاً، فيبقى العمق البصري دليلاً صادقاً على
+ * التفاعلية لا زخرفة معممة على كل بطاقة.
+ */
 export function Card({
   children,
   className,
+  interactive,
 }: {
   children: React.ReactNode;
   className?: string;
+  interactive?: boolean;
 }) {
   return (
     <div
       className={cn(
         "border-border bg-surface rounded-xl border shadow-sm",
+        interactive && "transition-shadow hover:shadow-md",
         className,
       )}
     >
@@ -57,15 +68,20 @@ export function StatCard({
   label,
   value,
   hint,
+  icon,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <Card className="p-4">
-      <div className="text-muted text-xs">{label}</div>
-      <div className="mt-1.5 text-xl font-semibold">{value}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-muted text-xs">{label}</div>
+        {icon ? <div className="text-muted [&>svg]:size-4">{icon}</div> : null}
+      </div>
+      <div className="mt-1.5 text-xl font-bold">{value}</div>
       {hint ? <div className="text-muted mt-1 text-xs">{hint}</div> : null}
     </Card>
   );
@@ -76,13 +92,20 @@ export function EmptyState({
   title,
   description,
   action,
+  icon,
 }: {
   title: string;
   description?: string;
   action?: { href: string; label: string };
+  icon?: React.ReactNode;
 }) {
   return (
     <div className="border-border bg-surface rounded-xl border border-dashed p-10 text-center">
+      {icon ? (
+        <div className="text-muted mx-auto mb-3 flex justify-center [&>svg]:size-8">
+          {icon}
+        </div>
+      ) : null}
       <p className="font-medium">{title}</p>
       {description ? (
         <p className="text-muted mx-auto mt-1.5 max-w-md text-sm">
@@ -92,8 +115,9 @@ export function EmptyState({
       {action ? (
         <Link
           href={action.href}
-          className="bg-primary text-primary-foreground mt-4 inline-block rounded-lg px-4 py-2 text-sm font-medium"
+          className="bg-primary text-primary-foreground mt-4 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-[opacity,box-shadow] hover:opacity-90 hover:shadow-md"
         >
+          <Plus className="size-4" aria-hidden="true" />
           {action.label}
         </Link>
       ) : null}

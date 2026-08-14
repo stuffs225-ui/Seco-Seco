@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { Card } from "@/components/domain/layout";
+import { Card, Td, Th } from "@/components/domain/layout";
 import {
   closeDeal,
   closeDealSettlingRemainder,
@@ -52,10 +52,12 @@ function CheckRow({
 }) {
   return (
     <tr>
-      <td className="px-4 py-2.5">{label}</td>
-      <td className="num px-4 py-2.5 text-end font-medium">{value}</td>
-      <td className="text-muted px-4 py-2.5 text-xs">{requirement}</td>
-      <td className="px-4 py-2.5 text-end">
+      <Td>{label}</Td>
+      <Td align="end" className="num font-medium">
+        {value}
+      </Td>
+      <Td className="text-muted text-xs">{requirement}</Td>
+      <Td align="end">
         <span
           className={cn(
             "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
@@ -66,7 +68,7 @@ function CheckRow({
         >
           {ok ? "مطابق" : "غير مكتمل"}
         </span>
-      </td>
+      </Td>
     </tr>
   );
 }
@@ -205,10 +207,10 @@ export function SettlementPanel({
         <table className="w-full text-sm">
           <thead className="bg-surface-muted text-muted">
             <tr>
-              <th className="px-4 py-2.5 text-start font-medium">البند</th>
-              <th className="px-4 py-2.5 text-end font-medium">القيمة</th>
-              <th className="px-4 py-2.5 text-start font-medium">المطلوب</th>
-              <th className="px-4 py-2.5 text-end font-medium">الحالة</th>
+              <Th>البند</Th>
+              <Th align="end">القيمة</Th>
+              <Th>المطلوب</Th>
+              <Th align="end">الحالة</Th>
             </tr>
           </thead>
           <tbody className="divide-border divide-y">

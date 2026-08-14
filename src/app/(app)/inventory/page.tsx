@@ -1,3 +1,4 @@
+import { PackageOpen } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -96,6 +97,7 @@ export default async function InventoryPage() {
           title="لا توجد دفعات بعد"
           description="ابدأ بتسجيل عملية شراء. كل شراء ينشئ دفعة مستقلة بتكلفة جرام خاصة بها، حتى لو تكرر الصنف."
           action={{ href: "/inventory/new", label: "تسجيل شراء" }}
+          icon={<PackageOpen />}
         />
       ) : (
         <>

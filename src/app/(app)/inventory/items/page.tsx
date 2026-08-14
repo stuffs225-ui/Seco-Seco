@@ -1,3 +1,4 @@
+import { Package } from "lucide-react";
 import type { Metadata } from "next";
 
 import {
@@ -48,6 +49,7 @@ export default async function ItemsPage() {
           title="لا توجد أصناف بعد"
           description="أضف صنفاً لتتمكن من تسجيل شراء."
           action={{ href: "/inventory/items/new", label: "إضافة صنف" }}
+          icon={<Package />}
         />
       ) : (
         <TableWrap>

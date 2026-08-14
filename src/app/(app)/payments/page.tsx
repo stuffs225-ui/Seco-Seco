@@ -1,3 +1,4 @@
+import { Receipt } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -119,6 +120,7 @@ export default async function PaymentsPage() {
           title="لا توجد تحصيلات بعد"
           description="الدفعة تُسجَّل على مستوى الموزع ثم تُخصَّص على صفقاته، أو تبقى رصيداً غير مخصص حتى تقرر توزيعها."
           action={{ href: "/payments/new", label: "تسجيل تحصيل" }}
+          icon={<Receipt />}
         />
       ) : (
         <TableWrap>

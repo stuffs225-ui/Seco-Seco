@@ -1,3 +1,4 @@
+import { Truck } from "lucide-react";
 import type { Metadata } from "next";
 
 import {
@@ -48,6 +49,7 @@ export default async function SuppliersPage() {
           title="لا يوجد موردون بعد"
           description="المورد اختياري لكل شراء — أضفه إن أردت ربط الفواتير به."
           action={{ href: "/inventory/suppliers/new", label: "إضافة مورد" }}
+          icon={<Truck />}
         />
       ) : (
         <TableWrap>

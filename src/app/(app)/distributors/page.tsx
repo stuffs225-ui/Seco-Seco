@@ -1,3 +1,4 @@
+import { UserPlus } from "lucide-react";
 import type { Metadata } from "next";
 
 import {
@@ -90,6 +91,7 @@ export default async function DistributorsPage() {
           title="لا يوجد موزعون بعد"
           description="أضف موزعاً لتتمكن من تسليم كميات على التصريف."
           action={{ href: "/distributors/new", label: "إضافة موزع" }}
+          icon={<UserPlus />}
         />
       ) : (
         <TableWrap>
