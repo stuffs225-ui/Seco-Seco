@@ -41,6 +41,66 @@ export async function closeDeal(
   return { error: null, success: "تم إغلاق الصفقة" };
 }
 
+/**
+ * إغلاق بضغطة واحدة: يسجّل الوزن المفتوح كتصريف كامل ثم يغلق (لمن لا
+ * يتتبع كمية التصريف ويكتفي بالتحصيل). استدعاء ذرّي واحد — إن فشل شرط
+ * التسديد لا يبقى أي أثر جزئي.
+ */
+export async function closeDealSettlingRemainder(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = dealIdSchema.safeParse({ deal_id: formData.get("deal_id") });
+  if (!parsed.success) return { error: "صفقة غير صحيحة" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("close_deal_settling_remainder", {
+    p_deal_id: parsed.data.deal_id,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/deals/${parsed.data.deal_id}`);
+  revalidatePath("/deals");
+  return { error: null, success: "تم إغلاق الصفقة" };
+}
+
+const cancelDealSchema = z.object({
+  deal_id: z.uuid(),
+  reason: z.string().trim().min(1, "سبب الإلغاء إلزامي"),
+});
+
+/** إلغاء صفقة لم يُسجَّل عليها غير التسليم الأول — راجع cancel_deal في القاعدة. */
+export async function cancelDeal(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = cancelDealSchema.safeParse({
+    deal_id: formData.get("deal_id"),
+    reason: formData.get("reason") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_deal", {
+    p_deal_id: parsed.data.deal_id,
+    p_reason: parsed.data.reason,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/deals/${parsed.data.deal_id}`);
+  revalidatePath("/deals");
+  return { error: null, success: "تم إلغاء الصفقة" };
+}
+
 const reopenSchema = z.object({
   deal_id: z.uuid(),
   reason: z.string().trim().min(1, "سبب إعادة الفتح إلزامي"),

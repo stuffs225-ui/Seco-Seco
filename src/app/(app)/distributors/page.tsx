@@ -4,13 +4,13 @@ import {
   EmptyState,
   PageHeader,
   TableWrap,
-  Td,
   Th,
 } from "@/components/domain/layout";
-import { Money, Weight } from "@/components/domain/numeric";
 import { createClient } from "@/lib/supabase/server";
 import type { DealStatusRow } from "@/types/deals";
 import type { MoneyAmount, WeightGrams } from "@/types/schema";
+
+import { DistributorRow } from "./distributor-row";
 
 export const metadata: Metadata = { title: "الموزعون" };
 
@@ -19,6 +19,7 @@ type Distributor = {
   code: string;
   name: string;
   phone: string;
+  notes: string;
   credit_limit_value: MoneyAmount;
   credit_limit_weight: WeightGrams;
   is_active: boolean;
@@ -31,7 +32,7 @@ export default async function DistributorsPage() {
     supabase
       .from("distributors")
       .select(
-        "id, code, name, phone, credit_limit_value, credit_limit_weight, is_active",
+        "id, code, name, phone, notes, credit_limit_value, credit_limit_weight, is_active",
       )
       .order("name")
       .returns<Distributor[]>(),
@@ -100,6 +101,9 @@ export default async function DistributorsPage() {
               <Th align="end">وزن العهدة</Th>
               <Th align="end">الذمة المستحقة</Th>
               <Th align="end">حد الائتمان</Th>
+              <Th align="end">
+                <span className="sr-only">إجراءات</span>
+              </Th>
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
@@ -113,36 +117,13 @@ export default async function DistributorsPage() {
               const overLimit = limit > 0 && total.balance > limit;
 
               return (
-                <tr key={distributor.id} className="hover:bg-surface-muted/50">
-                  <Td className="num font-medium">{distributor.code}</Td>
-                  <Td>
-                    {distributor.name}
-                    {!distributor.is_active ? (
-                      <span className="text-muted text-xs"> · غير نشط</span>
-                    ) : null}
-                  </Td>
-                  <Td className="num text-muted">{distributor.phone || "—"}</Td>
-                  <Td align="end">
-                    <Weight value={total.weight} />
-                  </Td>
-                  <Td align="end" className="font-medium">
-                    <Money value={total.balance} signed />
-                  </Td>
-                  <Td align="end">
-                    {limit > 0 ? (
-                      <>
-                        <Money value={limit} className="text-muted" />
-                        {overLimit ? (
-                          <div className="text-negative text-xs">
-                            تجاوز الحد
-                          </div>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="text-muted">بلا حد</span>
-                    )}
-                  </Td>
-                </tr>
+                <DistributorRow
+                  key={distributor.id}
+                  distributor={distributor}
+                  openWeight={total.weight}
+                  balance={total.balance}
+                  overLimit={overLimit}
+                />
               );
             })}
           </tbody>

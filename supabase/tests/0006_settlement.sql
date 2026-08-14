@@ -363,5 +363,181 @@ select is(
   'كل الإغلاقات وإعادات الفتح والتسويات مُقيَّدة في سجل التدقيق'
 );
 
+-- ═══════════════════════════════════════════════════════════════════════
+-- إغلاق بضغطة واحدة (0019) — لمن لا يتتبع كمية التصريف، يهمه التحصيل فقط
+-- ═══════════════════════════════════════════════════════════════════════
+
+insert into public.items (id, code, name)
+values ('dddd1111-0000-4000-8000-000000000001', 'ITM-CLOSE1', 'صنف الإغلاق السريع');
+
+select public.create_purchase_lot(
+  'dddd1111-0000-4000-8000-000000000001'::uuid,
+  '2026-09-01'::date, 2000::weight_grams, 40000::money_amount
+);
+
+select public.open_deal(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  (select id from public.lots
+   where item_id = 'dddd1111-0000-4000-8000-000000000001'),
+  300::weight_grams, 9000::money_amount, '2026-09-02'::date
+);
+
+-- سداد كامل القيمة دون تسجيل أي تصريف — بالضبط سيناريو "يهمني التحصيل فقط"
+select public.record_payment(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  9000::money_amount, '2026-09-03'::date,
+  'cash'::public.payment_method, 'PAY-QUICKCLOSE', null, '',
+  'specific',
+  jsonb_build_array(jsonb_build_object(
+    'deal_id', (select id from public.deals where delivery_date = '2026-09-02'),
+    'amount', 9000)));
+
+select is(
+  (select open_weight_g from public.v_deal_quantity
+   where deal_id = (select id from public.deals where delivery_date = '2026-09-02')),
+  300::weight_grams,
+  'مسدَّدة بالكامل لكن الوزن ما زال مفتوحاً — لا تصريف سُجِّل'
+);
+
+select throws_ok(
+  $$ select public.close_deal(
+       (select id from public.deals where delivery_date = '2026-09-02')) $$,
+  '23001',
+  null,
+  'الإغلاق العادي يُرفض طالما الوزن مفتوح'
+);
+
+select lives_ok(
+  $$ select public.close_deal_settling_remainder(
+       (select id from public.deals where delivery_date = '2026-09-02')) $$,
+  'الإغلاق بضغطة واحدة ينجح — يسوّي الباقي كتصريف كامل ثم يغلق'
+);
+
+select is(
+  (select status::text from public.deals
+   where delivery_date = '2026-09-02'),
+  'closed',
+  'الصفقة أُغلقت فعلاً'
+);
+
+select is(
+  (select realized_profit from public.deal_closing_snapshots
+   where deal_id = (select id from public.deals where delivery_date = '2026-09-02')),
+  3000::money_amount,
+  'الربح تحقق كاملاً (9,000 قيمة − 6,000 تكلفة) — تصريف حقيقي عبر record_deal_sale لا خسارة تسوية'
+);
+
+/*
+  صفقة غير مسدَّدة بالكامل: الدالة استدعاء واحد ذرّي — فشل close_deal
+  الداخلي يُسقط كل ما فعلته الدالة معه، بما فيه تسجيل التصريف الذي كان
+  قد "نجح" قبل الفشل. هذا صحيح ومقصود: إما تسوية وإغلاق كاملان معاً، أو
+  لا شيء يتغير إطلاقاً — لا حالة وسطى مربكة.
+*/
+select public.open_deal(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  (select id from public.lots
+   where item_id = 'dddd1111-0000-4000-8000-000000000001'),
+  100::weight_grams, 3000::money_amount, '2026-09-10'::date
+);
+
+select throws_ok(
+  $$ select public.close_deal_settling_remainder(
+       (select id from public.deals where delivery_date = '2026-09-10')) $$,
+  '23001',
+  null,
+  'صفقة غير مسدَّدة: الإغلاق بضغطة واحدة يُرفض أيضاً — التسديد شرط منفصل'
+);
+
+select is(
+  (select open_weight_g from public.v_deal_quantity
+   where deal_id = (select id from public.deals where delivery_date = '2026-09-10')),
+  100::weight_grams,
+  'الاستدعاء الفاشل ذرّي بالكامل — لا تصريف بقي مسجَّلاً ولا حالة وسطى'
+);
+
+-- ═══════════════════════════════════════════════════════════════════════
+-- إلغاء صفقة لم يمسها شيء (0019)
+-- ═══════════════════════════════════════════════════════════════════════
+
+select public.open_deal(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  (select id from public.lots
+   where item_id = 'dddd1111-0000-4000-8000-000000000001'),
+  150::weight_grams, 4000::money_amount, '2026-09-15'::date
+);
+
+select is(
+  (select on_hand_weight_g from public.v_lot_stock
+   where lot_id = (select id from public.lots
+                    where item_id = 'dddd1111-0000-4000-8000-000000000001')),
+  1450::weight_grams,  -- 2000 - 300 - 100 - 150 المسلَّم في الصفقات الثلاث أعلاه
+  'الوزن خرج للعهدة قبل الإلغاء'
+);
+
+select throws_ok(
+  $$ select public.cancel_deal(
+       (select id from public.deals where delivery_date = '2026-09-15'), '') $$,
+  '23514',  -- check_violation
+  null,
+  'سبب الإلغاء إلزامي'
+);
+
+select lives_ok(
+  $$ select public.cancel_deal(
+       (select id from public.deals where delivery_date = '2026-09-15'),
+       'اخترت الموزع الخطأ عند الإنشاء') $$,
+  'إلغاء صفقة لم يُسجَّل عليها غير التسليم الأول ينجح'
+);
+
+select is(
+  (select status::text from public.deals where delivery_date = '2026-09-15'),
+  'cancelled',
+  'حالة الصفقة صارت ملغاة'
+);
+
+select is(
+  (select on_hand_weight_g from public.v_lot_stock
+   where lot_id = (select id from public.lots
+                    where item_id = 'dddd1111-0000-4000-8000-000000000001')),
+  1600::weight_grams,  -- 1450 + 150 عادت للمخزون
+  'الوزن الملغى عاد للمخزون بتكلفته الأصلية'
+);
+
+select throws_ok(
+  $$ select public.cancel_deal(
+       (select id from public.deals where delivery_date = '2026-09-15'),
+       'محاولة ثانية') $$,
+  '23001',  -- restrict_violation
+  null,
+  'إلغاء صفقة ملغاة أصلاً مرفوض'
+);
+
+-- صفقة عليها تصريف فعلي (لا مغلقة): الإلغاء يُرفض ويوجَّه للاسترداد بدلاً منه
+select public.open_deal(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  (select id from public.lots
+   where item_id = 'dddd1111-0000-4000-8000-000000000001'),
+  50::weight_grams, 1200::money_amount, '2026-09-20'::date
+);
+
+select public.record_deal_sale(
+  (select id from public.deals where delivery_date = '2026-09-20'),
+  50::weight_grams);
+
+select throws_ok(
+  $$ select public.cancel_deal(
+       (select id from public.deals where delivery_date = '2026-09-20'),
+       'محاولة إلغاء صفقة عليها تصريف') $$,
+  '23514',
+  null,
+  'صفقة عليها تصريف لا يمكن إلغاؤها — الاسترداد هو المسار الصحيح'
+);
+
+select is(
+  (select count(*)::int from public.audit_log where action = 'deal.cancelled'),
+  1,
+  'الإلغاء الناجح الوحيد مُقيَّد في سجل التدقيق'
+);
+
 select * from finish();
 rollback;

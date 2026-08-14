@@ -7,6 +7,7 @@ import { useFormStatus } from "react-dom";
 import { Card } from "@/components/domain/layout";
 import {
   closeDeal,
+  closeDealSettlingRemainder,
   recordCommercialAdjustment,
   recordWeightAdjustment,
   reopenDeal,
@@ -112,6 +113,10 @@ export function SettlementPanel({
 }) {
   const router = useRouter();
   const [closeState, closeAction] = useActionState(closeDeal, initialState);
+  const [quickCloseState, quickCloseAction] = useActionState(
+    closeDealSettlingRemainder,
+    initialState,
+  );
   const [reopenState, reopenAction] = useActionState(reopenDeal, initialState);
   const [weightState, weightAction] = useActionState(
     recordWeightAdjustment,
@@ -122,10 +127,12 @@ export function SettlementPanel({
     initialState,
   );
   const [showAdjust, setShowAdjust] = useState(false);
+  const [confirmQuickClose, setConfirmQuickClose] = useState(false);
 
   useEffect(() => {
     if (
       closeState.success ||
+      quickCloseState.success ||
       reopenState.success ||
       weightState.success ||
       commercialState.success
@@ -134,11 +141,20 @@ export function SettlementPanel({
     }
   }, [
     closeState.success,
+    quickCloseState.success,
     reopenState.success,
     weightState.success,
     commercialState.success,
     router,
   ]);
+
+  /*
+    الحالة الأشيع: مسدَّدة بالكامل لكن لا أحد سجّل تصريفاً لأنه غير مهم
+    لهذا المالك (§24.9 — التحصيل مستقل عن الكمية أصلاً). "تسوية معتمدة"
+    خيار خاطئ هنا: تُسقط التكلفة والربح كخسارة رغم أن المبلغ تحصَّل فعلاً.
+  */
+  const onlyWeightOpen =
+    !recon.weight_settled && Number(recon.open_weight_g) > 0;
 
   if (isClosed) {
     return (
@@ -253,6 +269,57 @@ export function SettlementPanel({
         </div>
       </div>
 
+      {onlyWeightOpen ? (
+        <div className="border-primary/30 bg-primary/5 mt-4 rounded-lg border p-4">
+          <div className="text-sm font-medium">
+            إغلاق بضغطة واحدة — اعتبار الباقي مصرَّفاً بالكامل
+          </div>
+          <p className="text-muted mt-1 text-sm">
+            لا تصريف مسجَّل، لكن الرصيد المالي مسدَّد. هذا الخيار يسجّل الوزن
+            المفتوح ({formatWeight(recon.open_weight_g)}) كتصريف حقيقي فيتحقق
+            ربحه، ثم يغلق الصفقة مباشرة — بلا حاجة لتسجيل تصريف يدوي.
+          </p>
+
+          <form action={quickCloseAction} className="mt-3">
+            <input type="hidden" name="deal_id" value={dealId} />
+
+            {quickCloseState.error ? (
+              <div className="mb-3">
+                <ErrorNote message={quickCloseState.error} />
+              </div>
+            ) : null}
+
+            {confirmQuickClose ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-warning text-sm font-medium">
+                  سيُغلق نهائياً — لا تراجع إلا بإعادة الفتح.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmQuickClose(false)}
+                    className="border-border rounded-lg border px-4 py-2 text-sm"
+                  >
+                    تراجع
+                  </button>
+                  <ActionButton label="تأكيد الإغلاق" busy="جارٍ الإغلاق…" />
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmQuickClose(true)}
+                  className="bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+                >
+                  إغلاق واعتبار الباقي مصرَّفاً
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      ) : null}
+
       {!recon.can_close ? (
         <div className="mt-4">
           <button
@@ -260,7 +327,9 @@ export function SettlementPanel({
             onClick={() => setShowAdjust((prev) => !prev)}
             className="border-border rounded-lg border px-3 py-1.5 text-sm"
           >
-            {showAdjust ? "إخفاء التسويات" : "تسجيل تسوية معتمدة"}
+            {showAdjust
+              ? "إخفاء التسويات"
+              : "تسجيل تسوية معتمدة (هدر أو فرق ميزان)"}
           </button>
 
           {showAdjust ? (

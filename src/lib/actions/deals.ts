@@ -55,6 +55,91 @@ export async function createDistributor(
   return { error: null, success: "تمت إضافة الموزع" };
 }
 
+const updateDistributorSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1, "اسم الموزع مطلوب"),
+  phone: z.string().trim().default(""),
+  notes: z.string().trim().default(""),
+});
+
+/** الكود لا يُعدَّل — قد تُشير إليه تقارير موزعين مطبوعة سابقاً. */
+export async function updateDistributor(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = updateDistributorSchema.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    phone: formData.get("phone") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("distributors")
+    .update({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      notes: parsed.data.notes,
+    })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية تعديل موزع" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/distributors");
+  return { error: null, success: "تم تحديث الموزع" };
+}
+
+const setDistributorActiveSchema = z.object({
+  id: z.uuid(),
+  is_active: z.enum(["true", "false"]).transform((v) => v === "true"),
+});
+
+/**
+ * تفعيل/تعطيل موزع — لا حذف حقيقي. موزع له صفقات لا يمكن حذفه أصلاً
+ * (on delete restrict)؛ التعطيل يمنع تسليم كميات جديدة له (open_deal
+ * يتحقق من is_active) دون أن يمس أي صفقة قديمة.
+ */
+export async function setDistributorActive(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = setDistributorActiveSchema.safeParse({
+    id: formData.get("id"),
+    is_active: formData.get("is_active"),
+  });
+
+  if (!parsed.success) return { error: "بيانات غير صحيحة" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("distributors")
+    .update({ is_active: parsed.data.is_active })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية تعديل موزع" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/distributors");
+  return {
+    error: null,
+    success: parsed.data.is_active ? "تم تفعيل الموزع" : "تم تعطيل الموزع",
+  };
+}
+
 const openDealSchema = z.object({
   distributor_id: z.uuid("اختر الموزع"),
   lot_id: z.uuid("اختر الدفعة"),

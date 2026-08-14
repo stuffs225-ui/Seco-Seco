@@ -6,10 +6,10 @@ import { useFormStatus } from "react-dom";
 
 import { Card } from "@/components/domain/layout";
 import {
-  createDistributor,
-  updateDistributor,
+  createSupplier,
+  updateSupplier,
   type ActionState,
-} from "@/lib/actions/deals";
+} from "@/lib/actions/inventory";
 
 const initialState: ActionState = { error: null };
 
@@ -29,75 +29,50 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-type EditableDistributor = {
+type EditableSupplier = {
   id: string;
-  code: string;
   name: string;
   phone: string;
   notes: string;
 };
 
-export function DistributorForm({
-  distributor,
+export function SupplierForm({
+  supplier,
   onSaved,
 }: {
-  /** وجوده يحوّل النموذج لتعديل موزع قائم بدل إنشاء واحد جديد. */
-  distributor?: EditableDistributor;
+  /** وجوده يحوّل النموذج لتعديل مورد قائم بدل إنشاء واحد جديد. */
+  supplier?: EditableSupplier;
   onSaved?: () => void;
 }) {
   const router = useRouter();
-  const isEdit = distributor != null;
+  const isEdit = supplier != null;
   const [state, formAction] = useActionState(
-    isEdit ? updateDistributor : createDistributor,
+    isEdit ? updateSupplier : createSupplier,
     initialState,
   );
 
   useEffect(() => {
     if (!state.success) return;
     if (isEdit) onSaved?.();
-    else router.push("/distributors");
+    else router.push("/inventory/suppliers");
   }, [state.success, isEdit, onSaved, router]);
 
   return (
     <form action={formAction} className="space-y-6">
-      {isEdit ? <input type="hidden" name="id" value={distributor.id} /> : null}
+      {isEdit ? <input type="hidden" name="id" value={supplier.id} /> : null}
 
       <Card className="space-y-4 p-5">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {isEdit ? (
-            <div className="space-y-1.5">
-              <div className="block text-sm font-medium">كود الموزع</div>
-              <div className="num text-muted py-2 text-sm">
-                {distributor.code}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <label htmlFor="code" className="block text-sm font-medium">
-                كود الموزع
-              </label>
-              <input
-                id="code"
-                name="code"
-                required
-                placeholder="DST-001"
-                className={`${fieldClass} num`}
-              />
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <label htmlFor="name" className="block text-sm font-medium">
-              اسم الموزع
-            </label>
-            <input
-              id="name"
-              name="name"
-              required
-              defaultValue={distributor?.name}
-              className={fieldClass}
-            />
-          </div>
+        <div className="space-y-1.5">
+          <label htmlFor="name" className="block text-sm font-medium">
+            اسم المورد
+          </label>
+          <input
+            id="name"
+            name="name"
+            required
+            defaultValue={supplier?.name}
+            className={fieldClass}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -108,21 +83,20 @@ export function DistributorForm({
             id="phone"
             name="phone"
             type="tel"
-            dir="ltr"
-            defaultValue={distributor?.phone}
-            className={`${fieldClass} num text-start`}
+            defaultValue={supplier?.phone}
+            className={`${fieldClass} num`}
           />
         </div>
 
         <div className="space-y-1.5">
           <label htmlFor="notes" className="block text-sm font-medium">
-            ملاحظات
+            ملاحظات <span className="text-muted font-normal">(اختياري)</span>
           </label>
           <textarea
             id="notes"
             name="notes"
-            rows={2}
-            defaultValue={distributor?.notes}
+            rows={3}
+            defaultValue={supplier?.notes}
             className={fieldClass}
           />
         </div>
@@ -138,7 +112,7 @@ export function DistributorForm({
       ) : null}
 
       <div className="flex justify-end">
-        <SubmitButton label={isEdit ? "حفظ التعديل" : "حفظ الموزع"} />
+        <SubmitButton label={isEdit ? "حفظ التعديل" : "حفظ المورد"} />
       </div>
     </form>
   );

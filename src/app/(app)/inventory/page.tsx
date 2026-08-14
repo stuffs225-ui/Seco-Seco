@@ -79,6 +79,18 @@ export default async function InventoryPage() {
         action={{ href: "/inventory/new", label: "تسجيل شراء" }}
       />
 
+      <div className="no-print -mt-2 flex gap-4 text-sm">
+        <Link href="/inventory/items" className="text-accent hover:underline">
+          إدارة الأصناف
+        </Link>
+        <Link
+          href="/inventory/suppliers"
+          className="text-accent hover:underline"
+        >
+          إدارة الموردين
+        </Link>
+      </div>
+
       {rows.length === 0 ? (
         <EmptyState
           title="لا توجد دفعات بعد"

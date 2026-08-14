@@ -123,6 +123,8 @@ export type DealLedgerRow = {
   expected_profit_delta: MoneyAmount;
   realized_profit_delta: MoneyAmount;
   paid_delta: MoneyAmount;
+  ref_type: string;
+  ref_id: string | null;
   reason: string;
   notes: string;
   occurred_at: string;

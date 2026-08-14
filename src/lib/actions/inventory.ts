@@ -200,5 +200,203 @@ export async function createItem(
   }
 
   revalidatePath("/inventory");
+  revalidatePath("/inventory/items");
   return { error: null, success: "تمت إضافة الصنف" };
+}
+
+const updateItemSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1, "اسم الصنف مطلوب"),
+  description: z.string().trim().default(""),
+});
+
+/**
+ * تعديل اسم/وصف صنف. الكود `code` لا يُعدَّل — قد تُشير إليه دفعات
+ * قديمة نصياً في تقارير مطبوعة، وتغييره بأثر رجعي يربك تلك السجلات.
+ */
+export async function updateItem(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = updateItemSchema.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    description: formData.get("description") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("items")
+    .update({ name: parsed.data.name, description: parsed.data.description })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية تعديل صنف" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory/items");
+  return { error: null, success: "تم تحديث الصنف" };
+}
+
+const setItemActiveSchema = z.object({
+  id: z.uuid(),
+  is_active: z.enum(["true", "false"]).transform((v) => v === "true"),
+});
+
+/**
+ * تفعيل/تعطيل صنف — لا حذف حقيقي. صنف له دفعات قديمة لا يمكن حذفه
+ * أصلاً (on delete restrict)؛ التعطيل يخفيه من قوائم الشراء الجديدة
+ * دون أن يمس أي سجل تاريخي.
+ */
+export async function setItemActive(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = setItemActiveSchema.safeParse({
+    id: formData.get("id"),
+    is_active: formData.get("is_active"),
+  });
+
+  if (!parsed.success) return { error: "بيانات غير صحيحة" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("items")
+    .update({ is_active: parsed.data.is_active })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية تعديل صنف" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory/items");
+  revalidatePath("/inventory/new");
+  return {
+    error: null,
+    success: parsed.data.is_active ? "تم تفعيل الصنف" : "تم تعطيل الصنف",
+  };
+}
+
+const createSupplierSchema = z.object({
+  name: z.string().trim().min(1, "اسم المورد مطلوب"),
+  phone: z.string().trim().default(""),
+  notes: z.string().trim().default(""),
+});
+
+export async function createSupplier(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = createSupplierSchema.safeParse({
+    name: formData.get("name"),
+    phone: formData.get("phone") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("suppliers").insert(parsed.data);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية إضافة مورد" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory/suppliers");
+  return { error: null, success: "تمت إضافة المورد" };
+}
+
+const updateSupplierSchema = z.object({
+  id: z.uuid(),
+  name: z.string().trim().min(1, "اسم المورد مطلوب"),
+  phone: z.string().trim().default(""),
+  notes: z.string().trim().default(""),
+});
+
+export async function updateSupplier(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = updateSupplierSchema.safeParse({
+    id: formData.get("id"),
+    name: formData.get("name"),
+    phone: formData.get("phone") ?? "",
+    notes: formData.get("notes") ?? "",
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("suppliers")
+    .update({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      notes: parsed.data.notes,
+    })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية تعديل مورد" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory/suppliers");
+  return { error: null, success: "تم تحديث المورد" };
+}
+
+const setSupplierActiveSchema = z.object({
+  id: z.uuid(),
+  is_active: z.enum(["true", "false"]).transform((v) => v === "true"),
+});
+
+export async function setSupplierActive(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireUser();
+
+  const parsed = setSupplierActiveSchema.safeParse({
+    id: formData.get("id"),
+    is_active: formData.get("is_active"),
+  });
+
+  if (!parsed.success) return { error: "بيانات غير صحيحة" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("suppliers")
+    .update({ is_active: parsed.data.is_active })
+    .eq("id", parsed.data.id);
+
+  if (error) {
+    if (error.code === "42501") return { error: "لا تملك صلاحية تعديل مورد" };
+    return { error: error.message };
+  }
+
+  revalidatePath("/inventory/suppliers");
+  revalidatePath("/inventory/new");
+  return {
+    error: null,
+    success: parsed.data.is_active ? "تم تفعيل المورد" : "تم تعطيل المورد",
+  };
 }

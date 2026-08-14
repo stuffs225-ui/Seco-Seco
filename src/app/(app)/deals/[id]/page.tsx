@@ -19,8 +19,10 @@ import {
   type DealStatusRow,
 } from "@/types/deals";
 
+import { CancelDealButton } from "./cancel-deal-button";
 import { CreditResolution } from "./credit-resolution";
 import { PaymentQuickForm } from "./payment-quick-form";
+import { ReverseAllocationButton } from "./reverse-allocation-button";
 import { SettlementPanel, type Reconciliation } from "./settlement-panel";
 import { QuantityActions } from "./quantity-actions";
 import { ReportPicker } from "./report-picker";
@@ -69,7 +71,7 @@ export default async function DealWorkspacePage({
     supabase
       .from("deal_ledger")
       .select(
-        "id, entry_type, delivered_weight_g, settled_weight_g, commercial_value_delta, cost_delta, expected_profit_delta, realized_profit_delta, paid_delta, reason, notes, occurred_at",
+        "id, entry_type, delivered_weight_g, settled_weight_g, commercial_value_delta, cost_delta, expected_profit_delta, realized_profit_delta, paid_delta, ref_type, ref_id, reason, notes, occurred_at",
       )
       .eq("deal_id", id)
       .order("occurred_at")
@@ -117,6 +119,19 @@ export default async function DealWorkspacePage({
     Number(deal.open_weight_g) > 0 &&
     !["closed", "cancelled"].includes(deal.deal_status);
   const canRecordPayment = !["closed", "cancelled"].includes(deal.deal_status);
+  // نسخة مبكرة من حارس cancel_deal في القاعدة: صفقة نشطة لم يُسجَّل
+  // عليها غير التسليم الأول (سطر واحد في دفتر حركاتها)
+  const canCancel =
+    deal.deal_status === "active" && (ledger?.length ?? 0) === 1;
+
+  // تخصيصات عُكست بالفعل — لا يُعرض زر عكس ثانٍ لها (نفس ref_id يتكرر
+  // في حركة PAYMENT_REVERSAL المقابلة)
+  const reversedAllocationIds = new Set(
+    (ledger ?? [])
+      .filter((entry) => entry.entry_type === "PAYMENT_REVERSAL")
+      .map((entry) => entry.ref_id),
+  );
+  const canReverseAllocations = deal.deal_status !== "closed";
 
   return (
     <div className="space-y-6">
@@ -145,9 +160,12 @@ export default async function DealWorkspacePage({
             ) : null}
           </p>
         </div>
-        <div className="flex gap-2">
-          <QuantityStatusBadge status={deal.quantity_status} />
-          <PaymentStatusBadge status={deal.payment_status} />
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-2">
+            <QuantityStatusBadge status={deal.quantity_status} />
+            <PaymentStatusBadge status={deal.payment_status} />
+          </div>
+          <CancelDealButton dealId={deal.deal_id} eligible={canCancel} />
         </div>
       </div>
 
@@ -350,6 +368,9 @@ export default async function DealWorkspacePage({
               <Th align="end">أثر القيمة</Th>
               <Th align="end">نقد</Th>
               <Th>ملاحظة</Th>
+              <Th>
+                <span className="sr-only">إجراءات</span>
+              </Th>
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
@@ -391,6 +412,14 @@ export default async function DealWorkspacePage({
                 </Td>
                 <Td className="text-muted text-xs">
                   {entry.reason || entry.notes || "—"}
+                </Td>
+                <Td align="end">
+                  {entry.entry_type === "PAYMENT_RECEIVED" &&
+                  canReverseAllocations &&
+                  entry.ref_id &&
+                  !reversedAllocationIds.has(entry.ref_id) ? (
+                    <ReverseAllocationButton allocationId={entry.ref_id} />
+                  ) : null}
                 </Td>
               </tr>
             ))}

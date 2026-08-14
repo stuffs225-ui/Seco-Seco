@@ -5,14 +5,18 @@ import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Card } from "@/components/domain/layout";
-import { createItem, type ActionState } from "@/lib/actions/inventory";
+import {
+  createItem,
+  updateItem,
+  type ActionState,
+} from "@/lib/actions/inventory";
 
 const initialState: ActionState = { error: null };
 
 const fieldClass =
   "border-border bg-background focus:border-primary w-full rounded-lg border px-3 py-2 text-sm outline-none";
 
-function SubmitButton() {
+function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
   return (
     <button
@@ -20,40 +24,66 @@ function SubmitButton() {
       disabled={pending}
       className="bg-primary text-primary-foreground rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
     >
-      {pending ? "جارٍ الحفظ…" : "حفظ الصنف"}
+      {pending ? "جارٍ الحفظ…" : label}
     </button>
   );
 }
 
-export function ItemForm() {
+type EditableItem = { id: string; name: string; description: string };
+
+export function ItemForm({
+  item,
+  onSaved,
+}: {
+  /** وجوده يحوّل النموذج لتعديل صنف قائم بدل إنشاء واحد جديد. */
+  item?: EditableItem;
+  /** يُستدعى بعد نجاح التعديل — يُستخدم لإغلاق نموذج التعديل المضمَّن في القائمة. */
+  onSaved?: () => void;
+}) {
   const router = useRouter();
-  const [state, formAction] = useActionState(createItem, initialState);
+  const isEdit = item != null;
+  const [state, formAction] = useActionState(
+    isEdit ? updateItem : createItem,
+    initialState,
+  );
 
   useEffect(() => {
-    if (state.success) router.push("/inventory/new");
-  }, [state.success, router]);
+    if (!state.success) return;
+    if (isEdit) onSaved?.();
+    else router.push("/inventory/new");
+  }, [state.success, isEdit, onSaved, router]);
 
   return (
     <form action={formAction} className="space-y-6">
+      {isEdit ? <input type="hidden" name="id" value={item.id} /> : null}
+
       <Card className="space-y-4 p-5">
-        <div className="space-y-1.5">
-          <label htmlFor="code" className="block text-sm font-medium">
-            كود الصنف
-          </label>
-          <input
-            id="code"
-            name="code"
-            required
-            placeholder="ITM-001"
-            className={`${fieldClass} num`}
-          />
-        </div>
+        {isEdit ? null : (
+          <div className="space-y-1.5">
+            <label htmlFor="code" className="block text-sm font-medium">
+              كود الصنف
+            </label>
+            <input
+              id="code"
+              name="code"
+              required
+              placeholder="ITM-001"
+              className={`${fieldClass} num`}
+            />
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <label htmlFor="name" className="block text-sm font-medium">
             اسم الصنف
           </label>
-          <input id="name" name="name" required className={fieldClass} />
+          <input
+            id="name"
+            name="name"
+            required
+            defaultValue={item?.name}
+            className={fieldClass}
+          />
         </div>
 
         <div className="space-y-1.5">
@@ -64,6 +94,7 @@ export function ItemForm() {
             id="description"
             name="description"
             rows={3}
+            defaultValue={item?.description}
             className={fieldClass}
           />
         </div>
@@ -79,7 +110,7 @@ export function ItemForm() {
       ) : null}
 
       <div className="flex justify-end">
-        <SubmitButton />
+        <SubmitButton label={isEdit ? "حفظ التعديل" : "حفظ الصنف"} />
       </div>
     </form>
   );
