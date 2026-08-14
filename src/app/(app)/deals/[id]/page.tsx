@@ -19,7 +19,7 @@ import {
   type DealStatusRow,
 } from "@/types/deals";
 
-import { RecordSaleForm } from "./record-sale-form";
+import { QuantityActions } from "./quantity-actions";
 
 export const metadata: Metadata = { title: "ملف الصفقة" };
 
@@ -241,13 +241,15 @@ export default async function DealWorkspacePage({
         </Card>
       </section>
 
-      {/* ── تسجيل تصريف ───────────────────────────────────────────── */}
-      {canSell ? (
+      {/* ── حركات الكمية: التصريف والاسترداد (§18.3) ──────────────── */}
+      {canSell && line ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">تسجيل تصريف</h2>
-          <RecordSaleForm
+          <h2 className="text-lg font-semibold">حركات الكمية</h2>
+          <QuantityActions
             dealId={deal.deal_id}
             openWeight={deal.open_weight_g}
+            costPerGram={line.cost_per_g}
+            expectedProfitPerGram={line.expected_profit_per_g}
           />
         </section>
       ) : null}
