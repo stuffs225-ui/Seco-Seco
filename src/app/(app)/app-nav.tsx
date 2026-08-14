@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
  */
 const NAV_ITEMS = [
   { href: "/dashboard", label: "لوحة التحكم", ready: true },
-  { href: "/inventory", label: "المخزون", ready: false },
+  { href: "/inventory", label: "المخزون", ready: true },
   { href: "/distributors", label: "الموزعون", ready: false },
   { href: "/deals", label: "الصفقات", ready: false },
   { href: "/payments", label: "التحصيل", ready: false },
