@@ -6,6 +6,10 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/dal";
 import { createClient } from "@/lib/supabase/server";
 
+import { type ActionState, numericString } from "./shared";
+
+export type { ActionState };
+
 /**
  * إجراءات المخزون.
  *
@@ -16,22 +20,6 @@ import { createClient } from "@/lib/supabase/server";
  * التحقق هنا لراحة المستخدم فقط؛ المرجع النهائي قيود قاعدة البيانات،
  * فحتى لو تجاوز أحد هذه الطبقة تبقى البيانات سليمة.
  */
-
-export type ActionState = { error: string | null; success?: string };
-
-/** يقبل الأرقام العربية والفواصل الألفية التي قد يكتبها المستخدم. */
-const numericString = z
-  .string()
-  .trim()
-  .min(1, "القيمة مطلوبة")
-  .transform((raw) =>
-    raw
-      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
-      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-      .replace(/[,\s]/g, ""),
-  )
-  .refine((v) => /^\d+(\.\d+)?$/.test(v), "أدخل رقماً صحيحاً")
-  .refine((v) => Number(v) > 0, "القيمة يجب أن تكون أكبر من صفر");
 
 const expenseSchema = z.object({
   expense_type: z.string().trim().min(1),
