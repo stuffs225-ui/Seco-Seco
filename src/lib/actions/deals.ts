@@ -188,50 +188,12 @@ export async function openDeal(
   return { error: null, success: String(data) };
 }
 
-const recordSaleSchema = z.object({
-  deal_id: z.uuid(),
-  weight_g: numericString,
-  sale_date: z.string().min(1, "تاريخ التصريف مطلوب"),
-  notes: z.string().trim().default(""),
-});
-
-export async function recordDealSale(
-  _prev: ActionState,
-  formData: FormData,
-): Promise<ActionState> {
-  await requireUser();
-
-  const parsed = recordSaleSchema.safeParse({
-    deal_id: formData.get("deal_id"),
-    weight_g: formData.get("weight_g"),
-    sale_date: formData.get("sale_date"),
-    notes: formData.get("notes") ?? "",
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "بيانات غير صحيحة" };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("record_deal_sale", {
-    p_deal_id: parsed.data.deal_id,
-    p_weight_g: parsed.data.weight_g,
-    p_sale_date: parsed.data.sale_date,
-    p_notes: parsed.data.notes,
-  });
-
-  if (error) return { error: error.message };
-
-  revalidatePath(`/deals/${parsed.data.deal_id}`);
-  revalidatePath("/deals");
-  return { error: null, success: "تم تسجيل التصريف" };
-}
-
 const recordReturnSchema = z.object({
   deal_id: z.uuid(),
   weight_g: numericString,
   return_date: z.string().min(1, "تاريخ الاسترداد مطلوب"),
   reason: z.string().trim().default(""),
+  restock: z.enum(["true", "false"]).transform((v) => v === "true"),
 });
 
 /**
@@ -239,6 +201,8 @@ const recordReturnSchema = z.object({
  *
  * التكلفة الراجعة والربح المتوقع الملغى وتخفيض قيمة الصفقة تحسبها
  * قاعدة البيانات من اقتصاديات الصفقة المثبَّتة، فلا تُرسل من هنا.
+ * `restock` وحده يحدد أثر المخزون: تعود الكمية قابلة للبيع أم تُسلَّم
+ * للمالك مباشرة دون أن تعود.
  */
 export async function recordDealReturn(
   _prev: ActionState,
@@ -251,6 +215,7 @@ export async function recordDealReturn(
     weight_g: formData.get("weight_g"),
     return_date: formData.get("return_date"),
     reason: formData.get("reason") ?? "",
+    restock: formData.get("restock") ?? "true",
   });
 
   if (!parsed.success) {
@@ -263,6 +228,7 @@ export async function recordDealReturn(
     p_weight_g: parsed.data.weight_g,
     p_return_date: parsed.data.return_date,
     p_reason: parsed.data.reason,
+    p_restock: parsed.data.restock,
   });
 
   if (error) return { error: error.message };

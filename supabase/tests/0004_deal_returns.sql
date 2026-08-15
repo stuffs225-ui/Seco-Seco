@@ -336,5 +336,97 @@ select is(
   'كل استرداد مُقيَّد في سجل التدقيق'
 );
 
+-- ═══════════════════════════════════════════════════════════════════════
+-- 0020 — p_restock: استرداد لنفسي لا يعيد الكمية للمخزون
+-- ═══════════════════════════════════════════════════════════════════════
+
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated"}';
+
+insert into public.items (id, code, name)
+values ('eeeeeeee-0000-4000-8000-000000000002', 'ITM-R2', 'صنف الاسترداد الثاني');
+
+insert into public.distributors (id, code, name)
+values ('ffffffff-0000-4000-8000-000000000002', 'DST-R2', 'موزع الاسترداد الثاني');
+
+select public.create_purchase_lot(
+  'eeeeeeee-0000-4000-8000-000000000002'::uuid,
+  '2026-04-01'::date, 500::weight_grams, 10000::money_amount
+);
+
+select public.open_deal(
+  'ffffffff-0000-4000-8000-000000000002'::uuid,
+  (select id from public.lots
+   where item_id = 'eeeeeeee-0000-4000-8000-000000000002'),
+  200::weight_grams, 4800::money_amount, '2026-04-05'::date
+);
+
+select is(
+  (select on_hand_weight_g from public.v_lot_stock
+   where lot_id = (select id from public.lots
+                   where item_id = 'eeeeeeee-0000-4000-8000-000000000002')),
+  300::weight_grams,
+  'قبل الاسترداد: بقي 300ج في المخزن بعد تسليم 200ج'
+);
+
+select lives_ok(
+  $$ select public.record_deal_return(
+       (select id from public.deals
+        where distributor_id = 'ffffffff-0000-4000-8000-000000000002'::uuid),
+       50::weight_grams, '2026-04-10'::date, 'استرداد لنفسي — لا يعود للمخزون',
+       null, false
+     ) $$,
+  'استرداد بخيار p_restock:=false ينجح'
+);
+
+select is(
+  (select restocked from public.deal_returns
+   where deal_id = (select id from public.deals
+                     where distributor_id = 'ffffffff-0000-4000-8000-000000000002'::uuid)),
+  false,
+  '0020: عمود restocked سجّل false'
+);
+
+select is(
+  (select returned_cost from public.deal_returns
+   where deal_id = (select id from public.deals
+                     where distributor_id = 'ffffffff-0000-4000-8000-000000000002'::uuid)),
+  1000::money_amount,
+  '0020: رأس المال المحسوب = 50 × 20.00 = 1,000 — يحسب كالمعتاد رغم عدم العودة للمخزون'
+);
+
+select is(
+  (select cancelled_expected_profit from public.deal_returns
+   where deal_id = (select id from public.deals
+                     where distributor_id = 'ffffffff-0000-4000-8000-000000000002'::uuid)),
+  200::money_amount,
+  '0020: الربح المتوقع الملغى = 50 × 4.00 = 200'
+);
+
+select is(
+  (select open_weight_g from public.v_deal_quantity
+   where deal_id = (select id from public.deals
+                     where distributor_id = 'ffffffff-0000-4000-8000-000000000002'::uuid)),
+  150::weight_grams,
+  '0020: أثر الصفقة على الوزن المفتوح مطابق للاسترداد العادي — 200 - 50 = 150ج'
+);
+
+select is(
+  (select on_hand_weight_g from public.v_lot_stock
+   where lot_id = (select id from public.lots
+                   where item_id = 'eeeeeeee-0000-4000-8000-000000000002')),
+  300::weight_grams,
+  '0020: المخزون لم يتغير — الكمية لم تعد للدفعة'
+);
+
+select is(
+  (select entry_type::text from public.inventory_ledger
+   where lot_id = (select id from public.lots
+                   where item_id = 'eeeeeeee-0000-4000-8000-000000000002')
+   order by id desc limit 1),
+  'DELIVERED',
+  '0020: لا حركة RETURNED جديدة في دفتر المخزون — آخر حركة تبقى التسليم الأصلي'
+);
+
 select * from finish();
 rollback;

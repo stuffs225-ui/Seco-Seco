@@ -539,5 +539,88 @@ select is(
   'الإلغاء الناجح الوحيد مُقيَّد في سجل التدقيق'
 );
 
+-- ═══════════════════════════════════════════════════════════════════════
+-- توسيع الإلغاء (0020): صفقة عليها دفعة بلا بيع حقيقي تُلغى بنجاح
+--
+-- الحد القديم كان يرفض هذه الحالة (أكثر من سطر دفتر واحد). الحد الجديد
+-- يسمح بها لأن الدفعة لا تمس بيعاً حقيقياً — تُعكس عند الإلغاء بدل أن
+-- تمنعه.
+-- ═══════════════════════════════════════════════════════════════════════
+
+select public.open_deal(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  (select id from public.lots
+   where item_id = 'dddd1111-0000-4000-8000-000000000001'),
+  80::weight_grams, 2000::money_amount, '2026-09-25'::date
+);
+
+-- سداد جزئي دون أي تصريف — بالضبط الحالة التي كان الحد القديم يرفضها
+select public.record_payment(
+  'bbbb1111-0000-4000-8000-000000000001'::uuid,
+  1200::money_amount, '2026-09-26'::date,
+  'cash'::public.payment_method, 'PAY-CANCELTEST', null, '',
+  'specific',
+  jsonb_build_array(jsonb_build_object(
+    'deal_id', (select id from public.deals where delivery_date = '2026-09-25'),
+    'amount', 1200)));
+
+select is(
+  (select count(*)::int from public.payment_allocations
+   where deal_id = (select id from public.deals where delivery_date = '2026-09-25')
+     and reversed_at is null),
+  1,
+  '0020: تخصيص دفعة نشط على الصفقة الجديدة قبل الإلغاء'
+);
+
+select throws_ok(
+  $$ select public.cancel_deal(
+       (select id from public.deals where delivery_date = '2026-09-25'), '') $$,
+  '23514',
+  null,
+  'سبب الإلغاء إلزامي حتى مع دفعة موجودة'
+);
+
+select lives_ok(
+  $$ select public.cancel_deal(
+       (select id from public.deals where delivery_date = '2026-09-25'),
+       'إلغاء صفقة عليها دفعة بلا تصريف فعلي') $$,
+  '0020: إلغاء صفقة عليها دفعة (بلا بيع حقيقي) ينجح بالحد الجديد'
+);
+
+select is(
+  (select status::text from public.deals where delivery_date = '2026-09-25'),
+  'cancelled',
+  '0020: حالة الصفقة صارت ملغاة'
+);
+
+select is(
+  (select count(*)::int from public.payment_allocations
+   where deal_id = (select id from public.deals where delivery_date = '2026-09-25')
+     and reversed_at is null),
+  0,
+  '0020: تخصيص الدفعة عاد معكوساً — لا تخصيصات نشطة متبقية'
+);
+
+select is(
+  (select count(*)::int from public.payment_allocations
+   where deal_id = (select id from public.deals where delivery_date = '2026-09-25')),
+  1,
+  '0020: التخصيص لم يُحذف — عُلِّم كمعكوس فقط لا أكثر'
+);
+
+select is(
+  (select on_hand_weight_g from public.v_lot_stock
+   where lot_id = (select id from public.lots
+                    where item_id = 'dddd1111-0000-4000-8000-000000000001')),
+  1550::weight_grams,  -- 1470 بعد تسليم 80ج الجديدة + 80 عادت بالإلغاء
+  '0020: الوزن المفتوح عاد للمخزون عند الإلغاء'
+);
+
+select is(
+  (select count(*)::int from public.audit_log where action = 'deal.cancelled'),
+  2,
+  '0020: كلا الإلغاءين الناجحين مُقيَّد في سجل التدقيق'
+);
+
 select * from finish();
 rollback;

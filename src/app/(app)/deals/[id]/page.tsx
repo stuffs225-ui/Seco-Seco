@@ -115,14 +115,16 @@ export default async function DealWorkspacePage({
 
   const hasCredit = Number(deal.remaining_balance) < 0;
 
-  const canSell =
+  const canReturn =
     Number(deal.open_weight_g) > 0 &&
     !["closed", "cancelled"].includes(deal.deal_status);
   const canRecordPayment = !["closed", "cancelled"].includes(deal.deal_status);
-  // نسخة مبكرة من حارس cancel_deal في القاعدة: صفقة نشطة لم يُسجَّل
-  // عليها غير التسليم الأول (سطر واحد في دفتر حركاتها)
+  // نسخة مبكرة من حارس cancel_deal في القاعدة: صفقة غير مغلقة/ملغاة
+  // ولم يُسجَّل عليها بيع حقيقي (QTY_SOLD) — لا يهم عدد الدفعات أو
+  // الاستردادات، فتلك كلها قابلة للعكس عند الإلغاء
   const canCancel =
-    deal.deal_status === "active" && (ledger?.length ?? 0) === 1;
+    !["closed", "cancelled"].includes(deal.deal_status) &&
+    !(ledger ?? []).some((entry) => entry.entry_type === "QTY_SOLD");
 
   // تخصيصات عُكست بالفعل — لا يُعرض زر عكس ثانٍ لها (نفس ref_id يتكرر
   // في حركة PAYMENT_REVERSAL المقابلة)
@@ -320,10 +322,10 @@ export default async function DealWorkspacePage({
         />
       ) : null}
 
-      {/* ── حركات الكمية: التصريف والاسترداد (§18.3) ──────────────── */}
-      {canSell && line ? (
+      {/* ── استرداد كمية غير مصرَّفة (§18.3) ──────────────────────── */}
+      {canReturn && line ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">حركات الكمية</h2>
+          <h2 className="text-lg font-semibold">استرداد كمية</h2>
           <QuantityActions
             dealId={deal.deal_id}
             openWeight={deal.open_weight_g}
