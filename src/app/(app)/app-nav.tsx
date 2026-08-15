@@ -34,7 +34,7 @@ export function AppNav() {
 
   return (
     <header className="border-border bg-surface/90 no-print sticky top-0 z-40 border-b shadow-sm backdrop-blur-sm">
-      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6">
         <Link
           href="/dashboard"
           className="text-primary text-lg font-bold tracking-tight whitespace-nowrap"
@@ -42,7 +42,11 @@ export function AppNav() {
           سيكو سيكو
         </Link>
 
-        <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+        {/*
+          flex-wrap لا overflow-x-auto: تاب لا يتسع ينزل لسطر تالٍ ويبقى
+          مرئياً، بدل أن يختفي خلف تمرير أفقي قد لا ينتبه له المستخدم.
+        */}
+        <nav className="flex flex-1 flex-wrap items-center gap-1">
           {NAV_ITEMS.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
