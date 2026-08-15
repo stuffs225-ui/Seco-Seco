@@ -275,7 +275,7 @@ export function PaymentForm({
               {distributorDeals.map((deal) => (
                 <div
                   key={deal.deal_id}
-                  className="grid items-center gap-3 sm:grid-cols-[1fr_auto_10rem]"
+                  className="border-border grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto_10rem] sm:border-0 sm:p-0"
                 >
                   <div>
                     <div className="num text-sm font-medium">

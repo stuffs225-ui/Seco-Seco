@@ -122,7 +122,7 @@ export default async function DashboardPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">أين قيمة النشاط</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             label="النقد المتاح"
             value={<Money value={position?.cash_available} withCurrency />}
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">الالتزامات</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-4">
           <StatCard
             label="أرصدة دائنة للموزعين"
             value={<Money value={position?.distributor_credits} withCurrency />}
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
       */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">مراحل الربح</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <StatCard
             label="ربح متوقع مفتوح"
             value={

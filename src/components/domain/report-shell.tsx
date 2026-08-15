@@ -27,7 +27,7 @@ export function ReportShell({
     <div className="mx-auto max-w-4xl px-6 print:px-0">
       <div
         className={cn(
-          "mb-6 flex items-center justify-between gap-4 rounded-lg border px-4 py-2.5 print:rounded-none",
+          "mb-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2.5 print:rounded-none",
           internal
             ? "border-internal/40 bg-internal/10 text-internal"
             : "border-external/40 bg-external/10 text-external",
@@ -43,7 +43,7 @@ export function ReportShell({
         </span>
       </div>
 
-      <div className="mb-6 flex items-start justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{title}</h1>
           {subtitle ? (

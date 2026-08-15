@@ -174,7 +174,7 @@ export default async function DealWorkspacePage({
       {/* ── مؤشرات الصفقة (§19.1) ─────────────────────────────────── */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">الكمية</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             label="الوزن الأصلي"
             value={<Weight value={deal.original_weight_g} />}
@@ -197,7 +197,7 @@ export default async function DealWorkspacePage({
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">المال</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard
             label="القيمة الأصلية"
             value={<Money value={deal.original_value} />}
@@ -254,7 +254,7 @@ export default async function DealWorkspacePage({
         </div>
 
         <Card className="border-internal/30 p-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <div>
               <div className="text-muted text-xs">رأس المال الأصلي</div>
               <div className="mt-1 font-semibold">
@@ -282,7 +282,7 @@ export default async function DealWorkspacePage({
           </div>
 
           {line ? (
-            <div className="border-border mt-4 grid gap-4 border-t pt-4 sm:grid-cols-3">
+            <div className="border-border mt-4 grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3">
               <div>
                 <div className="text-muted text-xs">تكلفة الجرام</div>
                 <div className="mt-1 text-sm">
@@ -360,73 +360,140 @@ export default async function DealWorkspacePage({
           يكون بحركة عكسية تُضاف.
         </p>
 
-        <TableWrap>
-          <thead className="bg-surface-muted text-muted">
-            <tr>
-              <Th>التاريخ</Th>
-              <Th>الحركة</Th>
-              <Th align="end">وزن داخل</Th>
-              <Th align="end">وزن مسوّى</Th>
-              <Th align="end">أثر القيمة</Th>
-              <Th align="end">نقد</Th>
-              <Th>ملاحظة</Th>
-              <Th>
-                <span className="sr-only">إجراءات</span>
-              </Th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {(ledger ?? []).map((entry) => (
-              <tr key={entry.id}>
-                <Td className="num text-muted whitespace-nowrap">
-                  {formatDateTime(entry.occurred_at)}
-                </Td>
-                <Td className="font-medium">
-                  {ENTRY_TYPE_LABELS[entry.entry_type]}
-                </Td>
-                <Td align="end">
-                  {Number(entry.delivered_weight_g) !== 0 ? (
-                    <Weight value={entry.delivered_weight_g} />
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </Td>
-                <Td align="end">
-                  {Number(entry.settled_weight_g) !== 0 ? (
-                    <Weight value={entry.settled_weight_g} />
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </Td>
-                <Td align="end">
-                  {Number(entry.commercial_value_delta) !== 0 ? (
-                    <Money value={entry.commercial_value_delta} signed />
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </Td>
-                <Td align="end">
-                  {Number(entry.paid_delta) !== 0 ? (
-                    <Money value={entry.paid_delta} signed />
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </Td>
-                <Td className="text-muted text-xs">
-                  {entry.reason || entry.notes || "—"}
-                </Td>
-                <Td align="end">
-                  {entry.entry_type === "PAYMENT_RECEIVED" &&
-                  canReverseAllocations &&
-                  entry.ref_id &&
-                  !reversedAllocationIds.has(entry.ref_id) ? (
-                    <ReverseAllocationButton allocationId={entry.ref_id} />
+        {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+        <ul className="space-y-2 sm:hidden">
+          {(ledger ?? []).map((entry) => {
+            const canReverse =
+              entry.entry_type === "PAYMENT_RECEIVED" &&
+              canReverseAllocations &&
+              entry.ref_id &&
+              !reversedAllocationIds.has(entry.ref_id);
+
+            return (
+              <li key={entry.id}>
+                <Card className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium">
+                      {ENTRY_TYPE_LABELS[entry.entry_type]}
+                    </span>
+                    <span className="num text-muted text-xs whitespace-nowrap">
+                      {formatDateTime(entry.occurred_at)}
+                    </span>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+                    {Number(entry.delivered_weight_g) !== 0 ? (
+                      <div>
+                        <span className="text-muted text-xs">وزن داخل </span>
+                        <Weight value={entry.delivered_weight_g} />
+                      </div>
+                    ) : null}
+                    {Number(entry.settled_weight_g) !== 0 ? (
+                      <div>
+                        <span className="text-muted text-xs">وزن مسوّى </span>
+                        <Weight value={entry.settled_weight_g} />
+                      </div>
+                    ) : null}
+                    {Number(entry.commercial_value_delta) !== 0 ? (
+                      <div>
+                        <span className="text-muted text-xs">أثر القيمة </span>
+                        <Money value={entry.commercial_value_delta} signed />
+                      </div>
+                    ) : null}
+                    {Number(entry.paid_delta) !== 0 ? (
+                      <div>
+                        <span className="text-muted text-xs">نقد </span>
+                        <Money value={entry.paid_delta} signed />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {entry.reason || entry.notes ? (
+                    <p className="text-muted mt-2 text-xs">
+                      {entry.reason || entry.notes}
+                    </p>
                   ) : null}
-                </Td>
+
+                  {canReverse && entry.ref_id ? (
+                    <div className="mt-3 flex justify-end">
+                      <ReverseAllocationButton allocationId={entry.ref_id} />
+                    </div>
+                  ) : null}
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+
+        <div className="hidden sm:block">
+          <TableWrap>
+            <thead className="bg-surface-muted text-muted">
+              <tr>
+                <Th>التاريخ</Th>
+                <Th>الحركة</Th>
+                <Th align="end">وزن داخل</Th>
+                <Th align="end">وزن مسوّى</Th>
+                <Th align="end">أثر القيمة</Th>
+                <Th align="end">نقد</Th>
+                <Th>ملاحظة</Th>
+                <Th>
+                  <span className="sr-only">إجراءات</span>
+                </Th>
               </tr>
-            ))}
-          </tbody>
-        </TableWrap>
+            </thead>
+            <tbody className="divide-border divide-y">
+              {(ledger ?? []).map((entry) => (
+                <tr key={entry.id}>
+                  <Td className="num text-muted whitespace-nowrap">
+                    {formatDateTime(entry.occurred_at)}
+                  </Td>
+                  <Td className="font-medium">
+                    {ENTRY_TYPE_LABELS[entry.entry_type]}
+                  </Td>
+                  <Td align="end">
+                    {Number(entry.delivered_weight_g) !== 0 ? (
+                      <Weight value={entry.delivered_weight_g} />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </Td>
+                  <Td align="end">
+                    {Number(entry.settled_weight_g) !== 0 ? (
+                      <Weight value={entry.settled_weight_g} />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </Td>
+                  <Td align="end">
+                    {Number(entry.commercial_value_delta) !== 0 ? (
+                      <Money value={entry.commercial_value_delta} signed />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </Td>
+                  <Td align="end">
+                    {Number(entry.paid_delta) !== 0 ? (
+                      <Money value={entry.paid_delta} signed />
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </Td>
+                  <Td className="text-muted text-xs">
+                    {entry.reason || entry.notes || "—"}
+                  </Td>
+                  <Td align="end">
+                    {entry.entry_type === "PAYMENT_RECEIVED" &&
+                    canReverseAllocations &&
+                    entry.ref_id &&
+                    !reversedAllocationIds.has(entry.ref_id) ? (
+                      <ReverseAllocationButton allocationId={entry.ref_id} />
+                    ) : null}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </TableWrap>
+        </div>
       </section>
     </div>
   );

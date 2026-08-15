@@ -9,6 +9,7 @@ import {
 } from "@/components/domain/layout";
 import { createClient } from "@/lib/supabase/server";
 
+import { SupplierCard } from "./supplier-card";
 import { SupplierRow } from "./supplier-row";
 
 export const metadata: Metadata = { title: "الموردون" };
@@ -52,23 +53,36 @@ export default async function SuppliersPage() {
           icon={<Truck />}
         />
       ) : (
-        <TableWrap>
-          <thead className="bg-surface-muted text-muted">
-            <tr>
-              <Th>الاسم</Th>
-              <Th>الهاتف</Th>
-              <Th>ملاحظات</Th>
-              <Th align="end">
-                <span className="sr-only">إجراءات</span>
-              </Th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
+        <>
+          {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+          <ul className="space-y-2 sm:hidden">
             {rows.map((supplier) => (
-              <SupplierRow key={supplier.id} supplier={supplier} />
+              <li key={supplier.id}>
+                <SupplierCard supplier={supplier} />
+              </li>
             ))}
-          </tbody>
-        </TableWrap>
+          </ul>
+
+          <div className="hidden sm:block">
+            <TableWrap>
+              <thead className="bg-surface-muted text-muted">
+                <tr>
+                  <Th>الاسم</Th>
+                  <Th>الهاتف</Th>
+                  <Th>ملاحظات</Th>
+                  <Th align="end">
+                    <span className="sr-only">إجراءات</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {rows.map((supplier) => (
+                  <SupplierRow key={supplier.id} supplier={supplier} />
+                ))}
+              </tbody>
+            </TableWrap>
+          </div>
+        </>
       )}
     </div>
   );

@@ -116,41 +116,27 @@ export default async function SettingsPage() {
         </p>
 
         <div className="border-border bg-surface overflow-hidden rounded-xl border">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-surface-muted text-muted">
-                <tr>
-                  <th className="px-4 py-2.5 text-start font-medium">
-                    الإعداد
-                  </th>
-                  <th className="px-4 py-2.5 text-start font-medium">
-                    القيمة المعتمدة
-                  </th>
-                  <th className="px-4 py-2.5 text-start font-medium">
-                    آخر تحديث
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {(settings ?? []).map((setting) => (
-                  <tr key={setting.key}>
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{setting.description}</div>
-                      <div className="num text-muted mt-0.5 text-xs">
-                        {setting.key}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-medium">
-                      {describeValue(setting.value)}
-                    </td>
-                    <td className="num text-muted px-4 py-3 text-xs">
-                      {formatDateTime(setting.updated_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {(settings ?? []).map((setting) => (
+            <div
+              key={setting.key}
+              className="border-border flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 first:border-t-0"
+            >
+              <div>
+                <div className="font-medium">{setting.description}</div>
+                <div className="num text-muted mt-0.5 text-xs">
+                  {setting.key}
+                </div>
+              </div>
+              <div className="text-end">
+                <div className="font-medium">
+                  {describeValue(setting.value)}
+                </div>
+                <div className="num text-muted mt-0.5 text-xs">
+                  {formatDateTime(setting.updated_at)}
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
 
         <p className="text-muted text-xs">

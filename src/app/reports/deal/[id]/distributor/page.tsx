@@ -201,7 +201,37 @@ export default async function DistributorReportPage({
       </ReportSection>
 
       <ReportSection title="سجل الحركات">
-        <div className="overflow-x-auto">
+        {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+        <ul className="space-y-2 sm:hidden print:hidden">
+          {movements.map((movement, index) => (
+            <li
+              key={index}
+              className="border-border rounded-lg border px-3 py-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-sm font-medium">{movement.kind}</span>
+                <span className="num text-muted text-xs whitespace-nowrap">
+                  {formatDateTime(movement.occurred_at)}
+                </span>
+              </div>
+              <div className="mt-1 flex flex-wrap gap-x-4 text-sm">
+                {Number(movement.weight_g) !== 0 ? (
+                  <span className="num">{formatWeight(movement.weight_g)}</span>
+                ) : null}
+                {Number(movement.amount) !== 0 ? (
+                  <span className="num">{formatCurrency(movement.amount)}</span>
+                ) : null}
+              </div>
+              {movement.reference ? (
+                <div className="text-muted mt-1 text-xs">
+                  {movement.reference}
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden overflow-x-auto sm:block print:block">
           <table className="w-full text-sm">
             <thead className="border-border border-b">
               <tr>

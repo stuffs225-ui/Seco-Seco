@@ -10,6 +10,7 @@ import {
   Td,
   Th,
 } from "@/components/domain/layout";
+
 import { Money } from "@/components/domain/numeric";
 import { formatDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -123,53 +124,104 @@ export default async function PaymentsPage() {
           icon={<Receipt />}
         />
       ) : (
-        <TableWrap>
-          <thead className="bg-surface-muted text-muted">
-            <tr>
-              <Th>التاريخ</Th>
-              <Th>الموزع</Th>
-              <Th>الطريقة</Th>
-              <Th>المرجع</Th>
-              <Th align="end">المبلغ</Th>
-              <Th align="end">المخصص</Th>
-              <Th align="end">غير المخصص</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
+        <>
+          {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+          <ul className="space-y-2 sm:hidden">
             {rows.map((payment) => {
               const unallocated = Number(payment.unallocated_amount);
               return (
-                <tr
-                  key={payment.payment_id}
-                  className="hover:bg-surface-muted/50"
-                >
-                  <Td className="num text-muted">
-                    {formatDate(payment.payment_date)}
-                  </Td>
-                  <Td>{nameById.get(payment.distributor_id) ?? "—"}</Td>
-                  <Td>{METHOD_LABELS[payment.method] ?? payment.method}</Td>
-                  <Td className="num text-muted">{payment.reference || "—"}</Td>
-                  <Td align="end" className="font-medium">
-                    <Money value={payment.amount} />
-                  </Td>
-                  <Td align="end">
-                    <Money value={payment.allocated_amount} />
-                  </Td>
-                  <Td align="end">
-                    {unallocated > 0 ? (
-                      <Money
-                        value={payment.unallocated_amount}
-                        className="text-warning font-medium"
-                      />
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </Td>
-                </tr>
+                <li key={payment.payment_id}>
+                  <Card className="p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-medium">
+                        {nameById.get(payment.distributor_id) ?? "—"}
+                      </span>
+                      <Money value={payment.amount} className="font-medium" />
+                    </div>
+                    <p className="text-muted num mt-1 text-xs">
+                      {formatDate(payment.payment_date)} ·{" "}
+                      {METHOD_LABELS[payment.method] ?? payment.method}
+                      {payment.reference ? ` · ${payment.reference}` : ""}
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <div className="text-muted text-xs">المخصص</div>
+                        <div className="mt-0.5">
+                          <Money value={payment.allocated_amount} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-muted text-xs">غير المخصص</div>
+                        <div className="mt-0.5">
+                          {unallocated > 0 ? (
+                            <Money
+                              value={payment.unallocated_amount}
+                              className="text-warning font-medium"
+                            />
+                          ) : (
+                            <span className="text-muted">—</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </li>
               );
             })}
-          </tbody>
-        </TableWrap>
+          </ul>
+
+          <div className="hidden sm:block">
+            <TableWrap>
+              <thead className="bg-surface-muted text-muted">
+                <tr>
+                  <Th>التاريخ</Th>
+                  <Th>الموزع</Th>
+                  <Th>الطريقة</Th>
+                  <Th>المرجع</Th>
+                  <Th align="end">المبلغ</Th>
+                  <Th align="end">المخصص</Th>
+                  <Th align="end">غير المخصص</Th>
+                </tr>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {rows.map((payment) => {
+                  const unallocated = Number(payment.unallocated_amount);
+                  return (
+                    <tr
+                      key={payment.payment_id}
+                      className="hover:bg-surface-muted/50"
+                    >
+                      <Td className="num text-muted">
+                        {formatDate(payment.payment_date)}
+                      </Td>
+                      <Td>{nameById.get(payment.distributor_id) ?? "—"}</Td>
+                      <Td>{METHOD_LABELS[payment.method] ?? payment.method}</Td>
+                      <Td className="num text-muted">
+                        {payment.reference || "—"}
+                      </Td>
+                      <Td align="end" className="font-medium">
+                        <Money value={payment.amount} />
+                      </Td>
+                      <Td align="end">
+                        <Money value={payment.allocated_amount} />
+                      </Td>
+                      <Td align="end">
+                        {unallocated > 0 ? (
+                          <Money
+                            value={payment.unallocated_amount}
+                            className="text-warning font-medium"
+                          />
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </TableWrap>
+          </div>
+        </>
       )}
     </div>
   );

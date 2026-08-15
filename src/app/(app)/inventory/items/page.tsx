@@ -9,6 +9,7 @@ import {
 } from "@/components/domain/layout";
 import { createClient } from "@/lib/supabase/server";
 
+import { ItemCard } from "./item-card";
 import { ItemRow } from "./item-row";
 
 export const metadata: Metadata = { title: "الأصناف" };
@@ -52,23 +53,36 @@ export default async function ItemsPage() {
           icon={<Package />}
         />
       ) : (
-        <TableWrap>
-          <thead className="bg-surface-muted text-muted">
-            <tr>
-              <Th>الكود</Th>
-              <Th>الاسم</Th>
-              <Th>الوصف</Th>
-              <Th align="end">
-                <span className="sr-only">إجراءات</span>
-              </Th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
+        <>
+          {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+          <ul className="space-y-2 sm:hidden">
             {rows.map((item) => (
-              <ItemRow key={item.id} item={item} />
+              <li key={item.id}>
+                <ItemCard item={item} />
+              </li>
             ))}
-          </tbody>
-        </TableWrap>
+          </ul>
+
+          <div className="hidden sm:block">
+            <TableWrap>
+              <thead className="bg-surface-muted text-muted">
+                <tr>
+                  <Th>الكود</Th>
+                  <Th>الاسم</Th>
+                  <Th>الوصف</Th>
+                  <Th align="end">
+                    <span className="sr-only">إجراءات</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {rows.map((item) => (
+                  <ItemRow key={item.id} item={item} />
+                ))}
+              </tbody>
+            </TableWrap>
+          </div>
+        </>
       )}
     </div>
   );

@@ -101,7 +101,7 @@ export default async function InventoryPage() {
         />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <StatCard
               label="الوزن المتاح في المخزن"
               value={<Weight value={totals.onHandWeight} />}
@@ -116,71 +116,142 @@ export default async function InventoryPage() {
               label="تكلفة المخزون المتاح"
               value={<Money value={totals.onHandCost} withCurrency />}
               hint="بسعر التكلفة لا سعر البيع"
+              className="col-span-2 sm:col-span-1"
             />
           </div>
 
-          <TableWrap>
-            <thead className="bg-surface-muted text-muted">
-              <tr>
-                <Th>الدفعة</Th>
-                <Th>الصنف</Th>
-                <Th>تاريخ الاستلام</Th>
-                <Th align="end">الوزن المشترى</Th>
-                <Th align="end">تكلفة الجرام</Th>
-                <Th align="end">التكلفة الإجمالية</Th>
-                <Th align="end">المتاح</Th>
-                <Th align="end">لدى الموزعين</Th>
-                <Th>
-                  <span className="sr-only">إجراءات</span>
-                </Th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {rows.map((lot) => (
-                <tr key={lot.lot_id} className="hover:bg-surface-muted/50">
-                  <Td className="num font-medium">{lot.lot_no}</Td>
-                  <Td>
-                    <div className="font-medium">{lot.item_name}</div>
-                    <div className="num text-muted text-xs">
-                      {lot.item_code}
+          {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+          <ul className="space-y-2 sm:hidden">
+            {rows.map((lot) => (
+              <li key={lot.lot_id}>
+                <Card className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="num font-medium">{lot.lot_no}</div>
+                      <div className="text-sm">{lot.item_name}</div>
+                      <div className="num text-muted text-xs">
+                        {lot.item_code}
+                      </div>
                     </div>
-                  </Td>
-                  <Td className="num text-muted">
-                    {formatDate(lot.received_date)}
-                  </Td>
-                  <Td align="end">
-                    <Weight value={lot.purchased_weight_g} />
-                  </Td>
-                  <Td align="end">
-                    <PerGram value={lot.cost_per_g} />
-                    {Number(lot.capitalized_expenses) > 0 ? (
-                      <div className="text-muted text-xs">شامل المصاريف</div>
-                    ) : null}
-                  </Td>
-                  <Td align="end">
-                    <Money value={lot.total_cost} />
-                  </Td>
-                  <Td align="end" className="font-medium">
-                    <Weight value={lot.on_hand_weight_g} />
-                  </Td>
-                  <Td align="end">
-                    <Weight value={lot.out_weight_g} className="text-muted" />
-                  </Td>
-                  <Td align="end">
-                    {Number(lot.on_hand_weight_g) ===
-                    Number(lot.purchased_weight_g) ? (
+                    <div className="num text-muted text-xs whitespace-nowrap">
+                      {formatDate(lot.received_date)}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <div className="text-muted text-xs">المتاح</div>
+                      <div className="mt-0.5 font-medium">
+                        <Weight value={lot.on_hand_weight_g} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted text-xs">لدى الموزعين</div>
+                      <div className="text-muted mt-0.5">
+                        <Weight value={lot.out_weight_g} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted text-xs">تكلفة الجرام</div>
+                      <div className="mt-0.5">
+                        <PerGram value={lot.cost_per_g} />
+                        {Number(lot.capitalized_expenses) > 0 ? (
+                          <div className="text-muted text-xs">
+                            شامل المصاريف
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-muted text-xs">
+                        التكلفة الإجمالية
+                      </div>
+                      <div className="mt-0.5">
+                        <Money value={lot.total_cost} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {Number(lot.on_hand_weight_g) ===
+                  Number(lot.purchased_weight_g) ? (
+                    <div className="mt-3 flex justify-end">
                       <Link
                         href={`/inventory/${lot.lot_id}/correct`}
                         className="text-primary text-xs font-medium hover:underline"
                       >
                         تصحيح
                       </Link>
-                    ) : null}
-                  </Td>
+                    </div>
+                  ) : null}
+                </Card>
+              </li>
+            ))}
+          </ul>
+
+          <div className="hidden sm:block">
+            <TableWrap>
+              <thead className="bg-surface-muted text-muted">
+                <tr>
+                  <Th>الدفعة</Th>
+                  <Th>الصنف</Th>
+                  <Th>تاريخ الاستلام</Th>
+                  <Th align="end">الوزن المشترى</Th>
+                  <Th align="end">تكلفة الجرام</Th>
+                  <Th align="end">التكلفة الإجمالية</Th>
+                  <Th align="end">المتاح</Th>
+                  <Th align="end">لدى الموزعين</Th>
+                  <Th>
+                    <span className="sr-only">إجراءات</span>
+                  </Th>
                 </tr>
-              ))}
-            </tbody>
-          </TableWrap>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {rows.map((lot) => (
+                  <tr key={lot.lot_id} className="hover:bg-surface-muted/50">
+                    <Td className="num font-medium">{lot.lot_no}</Td>
+                    <Td>
+                      <div className="font-medium">{lot.item_name}</div>
+                      <div className="num text-muted text-xs">
+                        {lot.item_code}
+                      </div>
+                    </Td>
+                    <Td className="num text-muted">
+                      {formatDate(lot.received_date)}
+                    </Td>
+                    <Td align="end">
+                      <Weight value={lot.purchased_weight_g} />
+                    </Td>
+                    <Td align="end">
+                      <PerGram value={lot.cost_per_g} />
+                      {Number(lot.capitalized_expenses) > 0 ? (
+                        <div className="text-muted text-xs">شامل المصاريف</div>
+                      ) : null}
+                    </Td>
+                    <Td align="end">
+                      <Money value={lot.total_cost} />
+                    </Td>
+                    <Td align="end" className="font-medium">
+                      <Weight value={lot.on_hand_weight_g} />
+                    </Td>
+                    <Td align="end">
+                      <Weight value={lot.out_weight_g} className="text-muted" />
+                    </Td>
+                    <Td align="end">
+                      {Number(lot.on_hand_weight_g) ===
+                      Number(lot.purchased_weight_g) ? (
+                        <Link
+                          href={`/inventory/${lot.lot_id}/correct`}
+                          className="text-primary text-xs font-medium hover:underline"
+                        >
+                          تصحيح
+                        </Link>
+                      ) : null}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </TableWrap>
+          </div>
         </>
       )}
     </div>

@@ -331,7 +331,7 @@ export function PurchaseForm({
             {expenses.map((expense, index) => (
               <div
                 key={index}
-                className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_auto_auto]"
+                className="border-border grid items-end gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:border-0 sm:p-0"
               >
                 <input
                   type="text"

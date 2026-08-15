@@ -19,6 +19,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // تصدير viewport مخصص يُسقط قيم Next.js الافتراضية (width/initialScale)
+  // ما لم تُذكر صراحة — إسقاطها يكسر التحجيم على الجوال بصمت، وهذا
+  // النظام لا يُستخدم إلا من الجوال.
+  width: "device-width",
+  initialScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0b1120" },

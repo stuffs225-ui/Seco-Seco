@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { DealStatusRow } from "@/types/deals";
 import type { MoneyAmount, WeightGrams } from "@/types/schema";
 
+import { DistributorCard } from "./distributor-card";
 import { DistributorRow } from "./distributor-row";
 
 export const metadata: Metadata = { title: "الموزعون" };
@@ -94,42 +95,69 @@ export default async function DistributorsPage() {
           icon={<UserPlus />}
         />
       ) : (
-        <TableWrap>
-          <thead className="bg-surface-muted text-muted">
-            <tr>
-              <Th>الكود</Th>
-              <Th>الاسم</Th>
-              <Th>الهاتف</Th>
-              <Th align="end">وزن العهدة</Th>
-              <Th align="end">الذمة المستحقة</Th>
-              <Th align="end">حد الائتمان</Th>
-              <Th align="end">
-                <span className="sr-only">إجراءات</span>
-              </Th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
+        <>
+          {/* بطاقات الجوال — الجدول أدناه للشاشات الكبيرة فقط */}
+          <ul className="space-y-2 sm:hidden">
             {rows.map((distributor) => {
               const total = totals.get(distributor.id) ?? {
                 weight: 0,
                 balance: 0,
               };
               const limit = Number(distributor.credit_limit_value);
-              // حد صفر يعني بلا حد؛ التجاوز تنبيه لا منع (§24.11)
               const overLimit = limit > 0 && total.balance > limit;
 
               return (
-                <DistributorRow
-                  key={distributor.id}
-                  distributor={distributor}
-                  openWeight={total.weight}
-                  balance={total.balance}
-                  overLimit={overLimit}
-                />
+                <li key={distributor.id}>
+                  <DistributorCard
+                    distributor={distributor}
+                    openWeight={total.weight}
+                    balance={total.balance}
+                    overLimit={overLimit}
+                  />
+                </li>
               );
             })}
-          </tbody>
-        </TableWrap>
+          </ul>
+
+          <div className="hidden sm:block">
+            <TableWrap>
+              <thead className="bg-surface-muted text-muted">
+                <tr>
+                  <Th>الكود</Th>
+                  <Th>الاسم</Th>
+                  <Th>الهاتف</Th>
+                  <Th align="end">وزن العهدة</Th>
+                  <Th align="end">الذمة المستحقة</Th>
+                  <Th align="end">حد الائتمان</Th>
+                  <Th align="end">
+                    <span className="sr-only">إجراءات</span>
+                  </Th>
+                </tr>
+              </thead>
+              <tbody className="divide-border divide-y">
+                {rows.map((distributor) => {
+                  const total = totals.get(distributor.id) ?? {
+                    weight: 0,
+                    balance: 0,
+                  };
+                  const limit = Number(distributor.credit_limit_value);
+                  // حد صفر يعني بلا حد؛ التجاوز تنبيه لا منع (§24.11)
+                  const overLimit = limit > 0 && total.balance > limit;
+
+                  return (
+                    <DistributorRow
+                      key={distributor.id}
+                      distributor={distributor}
+                      openWeight={total.weight}
+                      balance={total.balance}
+                      overLimit={overLimit}
+                    />
+                  );
+                })}
+              </tbody>
+            </TableWrap>
+          </div>
+        </>
       )}
     </div>
   );

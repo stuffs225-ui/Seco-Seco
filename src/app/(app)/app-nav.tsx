@@ -19,8 +19,10 @@ import { cn } from "@/lib/utils";
  *
  * لا زر خروج: النظام مفتوح بلا دخول، والجلسة تُنشأ تلقائياً في الـ proxy.
  * زر خروج هنا يعيد الدخول فوراً فيبدو معطّلاً — وزر لا يعمل أسوأ من غيابه.
+ *
+ * تُصدَّر لإعادة استخدامها في BottomNav — نفس الأقسام، عرض مختلف.
  */
-const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+export const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
   { href: "/inventory", label: "المخزون", icon: Package },
   { href: "/distributors", label: "الموزعون", icon: Users },
@@ -43,10 +45,11 @@ export function AppNav() {
         </Link>
 
         {/*
-          flex-wrap لا overflow-x-auto: تاب لا يتسع ينزل لسطر تالٍ ويبقى
-          مرئياً، بدل أن يختفي خلف تمرير أفقي قد لا ينتبه له المستخدم.
+          hidden sm:flex: على الجوال التنقل عبر BottomNav الثابت أسفل
+          الشاشة — هذا الشريط يبقى للكمبيوتر فقط. flex-wrap لا
+          overflow-x-auto هناك: تاب لا يتسع ينزل لسطر تالٍ ويبقى مرئياً.
         */}
-        <nav className="flex flex-1 flex-wrap items-center gap-1">
+        <nav className="hidden flex-1 flex-wrap items-center gap-1 sm:flex">
           {NAV_ITEMS.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);

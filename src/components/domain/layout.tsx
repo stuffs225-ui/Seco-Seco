@@ -69,14 +69,16 @@ export function StatCard({
   value,
   hint,
   icon,
+  className,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <Card className="p-4">
+    <Card className={cn("p-4", className)}>
       <div className="flex items-center justify-between gap-2">
         <div className="text-muted text-xs">{label}</div>
         {icon ? <div className="text-muted [&>svg]:size-4">{icon}</div> : null}

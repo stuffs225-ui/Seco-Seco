@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth/dal";
 
 import { AppNav } from "./app-nav";
+import { BottomNav } from "./bottom-nav";
 
 /**
  * تخطيط التطبيق المحمي. `requireUser` هنا هو الفحص المعتمد —
@@ -18,9 +19,14 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-dvh flex-col">
       <AppNav />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+      {/*
+        pb-24: يحجز مساحة BottomNav الثابت على الجوال فلا يغطي آخر
+        محتوى الصفحة؛ لا حاجة له على الكمبيوتر حيث BottomNav مخفي.
+      */}
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 sm:pb-6">
         {children}
       </main>
+      <BottomNav />
     </div>
   );
 }

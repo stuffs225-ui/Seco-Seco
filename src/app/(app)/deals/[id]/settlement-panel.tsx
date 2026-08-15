@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { Card, Td, Th } from "@/components/domain/layout";
+import { Card } from "@/components/domain/layout";
 import {
   closeDeal,
   closeDealSettlingRemainder,
@@ -51,16 +51,16 @@ function CheckRow({
   requirement: string;
 }) {
   return (
-    <tr>
-      <Td>{label}</Td>
-      <Td align="end" className="num font-medium">
-        {value}
-      </Td>
-      <Td className="text-muted text-xs">{requirement}</Td>
-      <Td align="end">
+    <div className="border-border flex items-center justify-between gap-3 border-t px-4 py-3 first:border-t-0">
+      <div>
+        <div className="text-sm">{label}</div>
+        <div className="text-muted mt-0.5 text-xs">المطلوب: {requirement}</div>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="num text-sm font-medium">{value}</span>
         <span
           className={cn(
-            "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+            "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap",
             ok
               ? "bg-positive/10 text-positive"
               : "bg-negative/10 text-negative",
@@ -68,8 +68,8 @@ function CheckRow({
         >
           {ok ? "مطابق" : "غير مكتمل"}
         </span>
-      </Td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
@@ -203,47 +203,35 @@ export function SettlementPanel({
         تكون مطابقة جميعاً.
       </p>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-muted text-muted">
-            <tr>
-              <Th>البند</Th>
-              <Th align="end">القيمة</Th>
-              <Th>المطلوب</Th>
-              <Th align="end">الحالة</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            <CheckRow
-              label="الوزن المفتوح لدى الموزع"
-              value={formatWeight(recon.open_weight_g)}
-              ok={recon.weight_settled}
-              requirement="صفر"
-            />
-            <CheckRow
-              label="الرصيد المالي المتبقي"
-              value={formatMoney(recon.remaining_balance)}
-              ok={recon.payment_settled}
-              requirement="صفر إلا بتسوية معتمدة"
-            />
-            <CheckRow
-              label="فرق وزني غير مفسر"
-              value={formatWeight(recon.unexplained_weight)}
-              ok={recon.weight_explained}
-              requirement="صفر"
-            />
-            <CheckRow
-              label="فرق مالي غير مفسر"
-              value={formatMoney(recon.unexplained_money)}
-              ok={recon.money_explained}
-              requirement="صفر"
-            />
-          </tbody>
-        </table>
+      <div className="border-border bg-surface-muted/50 mt-4 overflow-hidden rounded-lg border">
+        <CheckRow
+          label="الوزن المفتوح لدى الموزع"
+          value={formatWeight(recon.open_weight_g)}
+          ok={recon.weight_settled}
+          requirement="صفر"
+        />
+        <CheckRow
+          label="الرصيد المالي المتبقي"
+          value={formatMoney(recon.remaining_balance)}
+          ok={recon.payment_settled}
+          requirement="صفر إلا بتسوية معتمدة"
+        />
+        <CheckRow
+          label="فرق وزني غير مفسر"
+          value={formatWeight(recon.unexplained_weight)}
+          ok={recon.weight_explained}
+          requirement="صفر"
+        />
+        <CheckRow
+          label="فرق مالي غير مفسر"
+          value={formatMoney(recon.unexplained_money)}
+          ok={recon.money_explained}
+          requirement="صفر"
+        />
       </div>
 
       <div className="border-border mt-4 border-t pt-4">
-        <div className="text-muted grid gap-3 text-xs sm:grid-cols-4">
+        <div className="text-muted grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
           <div>
             الوزن الأصلي
             <div className="num text-foreground mt-0.5 text-sm">
