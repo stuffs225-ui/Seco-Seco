@@ -1,0 +1,36 @@
+name: Legacy Seco-Seco Source Archive
+on:
+  push:
+    branches:
+      - archive/seco-seco-preserved-2026-11-05
+    paths:
+      - .github/workflows/archive-source.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout full Git history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Build immutable source backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p archive
+          git archive --format=zip --output=archive/Seco-Seco-source-2026-11-05.zip 7a208b5df7abdd9f65c8561bd2daa39099858937
+          git bundle create archive/Seco-Seco-git-history-2026-11-05.bundle --all
+          (cd archive && sha256sum * > SHA256SUMS.txt)
+          ls -lh archive
+      - name: Save code and version history separately
+        uses: actions/upload-artifact@v4
+        with:
+          name: seco-seco-legacy-source-and-history-2026-11-05
+          path: archive/
+          retention-days: 90
+          if-no-files-found: error
